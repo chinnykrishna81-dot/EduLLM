@@ -11,14 +11,18 @@ type Props={
 
 export function ChapterResourcesEditor({view,smartNotes,knowledgeGraph,busy,changeSmart,changeGraph,upload}:Props){
   const [smartMode,setSmartMode]=useState<'append'|'overwrite'>('append');
+  const [smartFile,setSmartFile]=useState<File>();
+  const [smartInputKey,setSmartInputKey]=useState(0);
   const notes=smartNotes||{title:'Smart Notes',richContent:'',documents:[]};
   const graph=knowledgeGraph||{title:'Knowledge Graph',description:''};
+  const uploadSmartNotes=async()=>{if(!smartFile)return;try{await upload('smart-notes',smartFile,smartMode);setSmartFile(undefined);setSmartInputKey(value=>value+1)}catch{/* The parent displays the API error and the selected file remains available. */}};
   return <section className="chapter-resource-editor">
     {view==='smart'&&<details open><summary><span><b>Smart Notes</b><small>Exam-ready teacher notes and answer-writing guidance</small></span><strong>{notes.documents?.length||0} file(s)</strong></summary>
       <div className="resource-body">
         <label>Section title<input value={notes.title} onChange={event=>changeSmart({...notes,title:event.target.value})}/></label>
         <RichTextEditor value={notes.richContent||''} onChange={richContent=>changeSmart({...notes,richContent})} placeholder="Paste or write exam-ready notes, formulas, equations and answer-writing guidance…"/>
-        <div className="resource-upload-row"><label>Upload behaviour<select value={smartMode} onChange={event=>setSmartMode(event.target.value as any)}><option value="append">Append to existing notes</option><option value="overwrite">Overwrite existing uploaded notes</option></select></label><label className="resource-file">Upload DOCX or PDF · max 5 MB<input disabled={busy} type="file" accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={event=>{const file=event.target.files?.[0];if(file)upload('smart-notes',file,smartMode);event.currentTarget.value=''}}/></label></div>
+        <div className="resource-upload-row"><label>Upload behaviour<select value={smartMode} onChange={event=>setSmartMode(event.target.value as any)}><option value="append">Append to existing notes</option><option value="overwrite">Overwrite existing uploaded notes</option></select></label><label className="resource-file">Select DOCX or PDF · max 5 MB<input key={smartInputKey} disabled={busy} type="file" accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={event=>setSmartFile(event.target.files?.[0])}/></label></div>
+        <div className="resource-upload-action"><span>{smartFile?`${smartFile.name} · ${(smartFile.size/1024/1024).toFixed(2)} MB`:'Select a file before uploading.'}</span><button type="button" disabled={!smartFile||busy} onClick={uploadSmartNotes}>{busy?'Uploading…':'Upload Smart Notes'}</button></div>
         {!!notes.documents?.length&&<ul className="resource-files">{notes.documents.map((item:any)=><li key={item.id}><b>{item.fileName}</b><span>{(item.byteSize/1024/1024).toFixed(2)} MB</span></li>)}</ul>}
       </div>
     </details>}
