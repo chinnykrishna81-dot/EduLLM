@@ -86,7 +86,8 @@ export class PlatformService {
     const extension=file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
     const allowed=resourceType==='smart-notes'?['.pdf','.docx']:['.pdf','.docx','.png','.jpg','.jpeg'];
     try{
-      if(file.size>5*1024*1024)throw new UnprocessableEntityException('The file exceeds the 5 MB limit');
+      const maxMb=resourceType==='smart-notes'?10:5;
+      if(file.size>maxMb*1024*1024)throw new UnprocessableEntityException(`The file exceeds the ${maxMb} MB limit`);
       if(!allowed.includes(extension))throw new UnprocessableEntityException(`${resourceType==='smart-notes'?'Smart Notes supports DOCX or PDF':'Knowledge Graph supports JPG, PNG, PDF or DOCX'}`);
       const buffer=await readFile(file.path);
       if(extension==='.pdf'&&buffer.subarray(0,5).toString()!=='%PDF-')throw new UnprocessableEntityException('The selected file is not a valid PDF');

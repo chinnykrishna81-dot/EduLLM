@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {readFileSync} from 'node:fs';
-import { chapterLearningPages, validateChapterPackage, validateCoursePackage } from './index';
+import { ChapterSchema, chapterLearningPages, validateChapterPackage, validateCoursePackage } from './index';
 
 describe('course package validation', () => {
   it('rejects a package without chapters', () => {
@@ -15,6 +15,11 @@ describe('course package validation', () => {
 });
 
 describe('structured chapter packages',()=>{
+  it('allows Smart Notes up to 10 MB while keeping Knowledge Graph resources at 5 MB',()=>{
+    const resource={id:'resource-1',fileName:'notes.docx',url:'/uploads/notes.docx',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',byteSize:6*1024*1024,uploadedAt:new Date().toISOString(),extractedHtml:'<p>Notes</p>'};
+    expect(ChapterSchema.safeParse({id:'chapter-1',title:'Chapter',smartNotes:{title:'Smart Notes',richContent:'',documents:[resource]}}).success).toBe(true);
+    expect(ChapterSchema.safeParse({id:'chapter-1',title:'Chapter',knowledgeGraph:{title:'Knowledge Graph',description:'',resource}}).success).toBe(false);
+  });
   it('supports Topic → Subtopic → Page, subtopic checks and flat Chapter Practice',()=>{
     const question=(id:string,usage:string[])=>({id,title:id,question:'Which statement is correct?',options:['A','B'],correctAnswer:'A',explanation:'A is correct.',usage});
     const concept={id:'concept-1',title:'Reactants and products',explanation:{summary:'Reactants form products.',quickUnderstanding:'Reactants are on the left.',beginner:'A reaction changes reactants into products.',detailed:'Atoms rearrange during a chemical reaction.'},learningCards:[{id:'card-1',title:'Reaction',content:'Reactants form products.'}]};

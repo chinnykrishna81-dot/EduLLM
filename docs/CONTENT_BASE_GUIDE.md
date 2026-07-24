@@ -51,6 +51,10 @@ Only Chapter, Topic, Sub-topic, Page, Page ID, Title, Content, Remember and Imag
 
 Uploads from multiple sources with the same Board, Class, Subject and Chapter title are combined in the proposal. Exact duplicate pages remain traceable in staging but are omitted from the proposal. Source changes never silently alter an existing Chapter Draft.
 
+## Deleting a staging upload
+
+Select **Delete** beside the staging batch and confirm the warning. The batch and its extracted staging pages are removed, but any Chapter Draft previously created from the batch remains unchanged. If another batch identified one of the deleted pages as an exact duplicate, that cross-batch duplicate reference is cleared transactionally so deletion is not blocked and the remaining staged page can be reviewed normally.
+
 ## Images
 
 The staged image name is retained without requiring an extension. When the Chapter opens, the media resolver matches PNG, JPG/JPEG, WebP or SVG by normalized filename. The default layout is content left and image right. If the image is absent, student content uses the full width; the authoring interface retains the reference for correction. Teachers can use the existing image controls to replace, reposition or add images after loading.

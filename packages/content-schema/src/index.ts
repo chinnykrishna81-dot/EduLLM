@@ -113,16 +113,17 @@ export const BirdsEyeSummarySchema = z.object({
 });
 export const ChapterResourceDocumentSchema = z.object({
   id, fileName:z.string().min(1), url:z.string().min(1), mimeType:z.string().min(1),
-  byteSize:z.number().int().positive().max(5*1024*1024), uploadedAt:z.string().min(1),
+  byteSize:z.number().int().positive().max(10*1024*1024), uploadedAt:z.string().min(1),
   pageCount:z.number().int().positive().optional(), extractedHtml:text
 });
+const KnowledgeGraphResourceDocumentSchema=ChapterResourceDocumentSchema.extend({byteSize:z.number().int().positive().max(5*1024*1024)});
 export const SmartNotesSchema = z.object({
   title:z.string().min(1).default('Smart Notes'), richContent:text,
   documents:z.array(ChapterResourceDocumentSchema).default([])
 });
 export const KnowledgeGraphSchema = z.object({
   title:z.string().min(1).default('Knowledge Graph'), description:text,
-  resource:ChapterResourceDocumentSchema.optional()
+  resource:KnowledgeGraphResourceDocumentSchema.optional()
 });
 export const ChapterSchema = z.object({
   id, title: z.string().min(1), description: text, mediaRefs,

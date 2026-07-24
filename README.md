@@ -11,6 +11,10 @@ A local-first learning platform with separate Content Operations and Student Lea
 - Published-course boundary: drafts do not appear in the student catalogue
 - Original comprehensive content schema and illustrated sample retained for migration
 - Chapter Package 2.0 paste/file import with validate-only preview, counts, warnings and draft creation
+- Visual rich-text authoring for Topic, Subtopic, Learning Page and text-block content
+- Chapter Smart Notes with explicit DOCX/PDF upload, logical pagination and a 10 MB file limit
+- Full-width, scrollable Knowledge Graph viewing with full-screen zoom controls
+- Content Base staging with reviewed hierarchy creation and safe batch deletion
 - PostgreSQL persistence and local filesystem image storage
 - Swagger API documentation
 
