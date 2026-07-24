@@ -1,0 +1,48 @@
+.birds-eye { max-width:1120px; margin:24px auto 0; border:1px solid #bad5c9; border-radius:17px; overflow:hidden; background:white; }
+.summary-nav { width:100%; margin-top:12px; display:grid !important; grid-template-columns:18px 1fr 16px !important; gap:12px !important; align-items:start; text-align:left !important; padding:18px 12px !important; border:0 !important; border-top:1px solid #dce5e1 !important; border-radius:0 !important; background:#fff !important; }
+.summary-nav > i { width:10px; height:10px; margin-top:7px; border-radius:50%; background:#afbeb8; }
+.summary-nav > i.done { background:#1bae7c; }
+.summary-nav > strong { color:#157358; font-size:20px; }
+.summary-nav > div { display:grid; gap:3px; }
+.summary-nav > div b,.hierarchy-topic > summary span b { font-family:Georgia,serif; font-size:18px !important; line-height:1.2; letter-spacing:-.01em; color:#173d33; }
+.summary-nav small { color:#65766e; }
+.summary-nav.active,.summary-nav:hover { background:#eef8f3 !important; }
+.cycle-test-card { margin-top:14px; padding:10px; border:1px solid #ded8c8; border-radius:10px; background:#f6f3e9; }
+.cycle-test-card.unlocked { border-color:#9bceb9; background:#e8f5ee; }
+.confidence-unlock { display:grid; grid-template-columns:18px 1fr; gap:9px; align-items:start; margin:0 0 8px; padding:9px; border:1px solid #d5ded9; border-radius:8px; background:#fffdf8; font-size:11px; font-weight:750; line-height:1.4; cursor:pointer; }
+.confidence-unlock input { margin:2px 0 0; }
+.confidence-unlock.confirmed { background:#e4f4ec; border-color:#85c7ad; color:#0d7358; cursor:default; }
+.cycle-test-card > .test-lock { width:100%; margin:0; text-align:left; display:block; border:0; background:transparent; }
+.cycle-test-card > button.test-lock:disabled { cursor:not-allowed; opacity:.78; }
+.student-sim-layout main > .birds-eye { margin-top:16px; }
+.birds-eye > summary { cursor:pointer; padding:20px 25px; display:flex; justify-content:space-between; align-items:center; background:linear-gradient(120deg,#dcefe6,#f3edda); }
+.birds-eye > summary div { display:grid; gap:5px; }
+.birds-eye > summary small { color:#0d7959; font-size:9px; letter-spacing:.15em; font-weight:850; }
+.birds-eye > summary b { font:500 30px Georgia; }
+.birds-eye > summary span { font-size:11px; color:#60736a; }
+.birds-eye-body { padding:25px; }
+.birds-overview h2 { font:500 31px Georgia; margin:0 0 8px; }
+.birds-overview p { font-size:16px; line-height:1.65; }
+.birds-overview blockquote { margin:15px 0; padding:15px 18px; border-left:4px solid #1a8a68; background:#edf7f2; line-height:1.6; }
+.birds-eye figure { max-width:700px; margin:18px auto; text-align:center; }
+.birds-eye figure img { max-width:100%; max-height:330px; object-fit:contain; }
+.birds-eye figcaption { color:#68766f; font-size:11px; }
+.birds-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.birds-grid section,.formula-sheet { border:1px solid #dfe6e2; border-radius:10px; padding:15px; }
+.birds-grid h3,.formula-sheet h3 { margin:0 0 9px; font:500 20px Georgia; }
+.birds-grid li { margin:6px 0; line-height:1.45; }
+.formula-sheet { margin-top:12px; }
+.formula-sheet > div { display:grid; grid-template-columns:1fr 1.2fr 2fr; gap:12px; padding:9px 0; border-top:1px solid #e5eae7; }
+.formula-sheet code { color:#0d7358; font-weight:800; }
+.important-notes { margin-top:22px; border-top:3px solid #187858; padding-top:18px; }
+.important-notes > header small { color:#137557; font-weight:850; letter-spacing:.12em; }
+.important-notes > header h2 { margin:5px 0; font:500 30px Georgia; }
+.important-note-page { margin-top:16px; padding:18px; border:1px solid #dce5e1; border-radius:13px; background:#fbfdfc; break-inside:avoid; }
+.important-note-page > h3 { margin:0 0 5px; font:500 24px Georgia; color:#173d33; }
+.reaction-note { margin-top:12px; padding:13px; border-left:4px solid #55b693; background:white; box-shadow:0 2px 8px #173d330d; }
+.reaction-note h4 { margin:0 0 8px; font-size:16px; }
+.reaction-equation { display:block; padding:10px 12px; border-radius:8px; background:linear-gradient(90deg,#edf7ff,#fff5ed); color:#126b9a; font-size:17px; font-weight:850; white-space:normal; }
+.reaction-note dl { display:grid; grid-template-columns:max-content 1fr; gap:5px 10px; margin:10px 0 0; font-size:13px; }
+.reaction-note dt { color:#68766f; font-weight:800; }
+.reaction-note dd { margin:0; }
+@media(max-width:800px){.birds-eye{margin:15px}.birds-grid{grid-template-columns:1fr}.formula-sheet>div{grid-template-columns:1fr}.birds-eye>summary{align-items:flex-start;flex-direction:column;gap:8px}}

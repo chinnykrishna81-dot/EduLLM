@@ -1,0 +1,39 @@
+data/
+data-backup-*/
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+*.sha256
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+~$*
+*.zip
+cbse-10-science/
+private-content-sources/
+09-reference-material-private/
+storage/uploads/*
+!storage/uploads/.gitkeep
+**/storage/uploads/*
+!**/storage/uploads/.gitkeep
+
+# Local databases, exports and backups
+*.sql
+*.dump
+*.backup
+*.sqlite
+*.sqlite3
+
+# Deployment credentials and private keys
+*.pem
+*.key
+*.p12
+*.pfx
+.aws/
+
+# Local editor and operating-system state
+.idea/
+.vscode/

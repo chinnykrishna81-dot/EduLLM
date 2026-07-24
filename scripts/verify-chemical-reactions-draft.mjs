@@ -1,0 +1,15 @@
+const api=process.env.EDULLM_API_URL||'http://127.0.0.1:3001/api';
+const login=await fetch(`${api}/auth/login`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:process.env.EDULLM_ADMIN_EMAIL||'admin@edullm.local',password:process.env.EDULLM_ADMIN_PASSWORD||'Admin@123'})}).then(r=>r.json());
+const headers={authorization:`Bearer ${login.token}`};
+const chapters=await fetch(`${api}/library/chapters`,{headers}).then(r=>r.json());
+const chapter=chapters.find(item=>item.stableId==='cbse10-science-chemical-reactions-equations');
+if(!chapter)throw new Error('Imported chapter not found');
+const media=await fetch(`${api}/library/chapters/${chapter.id}/media`,{headers}).then(r=>r.json());
+const bankIds=new Set(chapter.cycleTest.questionBank.map(question=>question.id));
+const formAudit=chapter.cycleTest.forms.map(form=>({number:form.number,status:form.status,objective:form.sections[0].questionIds.length,guided:form.sections[1].questionIds.length,marks:form.sections[0].questionIds.length+form.sections[1].questionIds.length*3,allReferencesValid:form.sections.every(section=>section.questionIds.every(id=>bankIds.has(id)))}));
+const files=new Set(media.map(item=>item.fileName));
+const expected=chapter.package.mediaManifest.map(item=>item.fileName);
+console.log(JSON.stringify({id:chapter.id,status:chapter.status,version:chapter.version,topics:chapter.content.topics.length,practiceQuestions:chapter.content.topics.flatMap(t=>t.concepts).reduce((n,c)=>n+c.type1Questions.length+c.type2Questions.length,0),questionBank:chapter.cycleTest.questionBank.length,uniqueBankIds:bankIds.size,forms:formAudit,uploadedMedia:media.length,missingMedia:expected.filter(name=>!files.has(name))},null,2));
+const usedIds=new Set(chapter.cycleTest.forms.flatMap(form=>form.sections.flatMap(section=>section.questionIds)));
+console.log(`Bank utilisation: ${usedIds.size}/${bankIds.size}`);
+if(bankIds.size!==75||usedIds.size!==bankIds.size||formAudit.some(form=>form.marks!==25||!form.allReferencesValid)||expected.some(name=>!files.has(name)))process.exitCode=1;

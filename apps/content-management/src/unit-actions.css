@@ -1,0 +1,4 @@
+.unit-head-actions { display:flex; align-items:center; gap:10px; }
+.unit-head-actions button { padding:6px 9px !important; color:#963e35 !important; border-color:#d8aaa3 !important; font-size:10px !important; }
+.platform-shell button.danger { color:#963e35; border-color:#d8aaa3; background:#fff8f6; }
+.subject-head-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end; }

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="420" viewBox="0 0 960 420" role="img" aria-labelledby="title desc">
+  <title id="title">Burning magnesium ribbon</title><desc id="desc">Magnesium burns in oxygen with a bright white flame and forms magnesium oxide.</desc>
+  <defs><radialGradient id="glow"><stop stop-color="#fff"/><stop offset=".35" stop-color="#fff8a5"/><stop offset="1" stop-color="#ff7a00" stop-opacity="0"/></radialGradient></defs>
+  <rect width="960" height="420" rx="28" fill="#10213a"/>
+  <text x="480" y="55" text-anchor="middle" font-family="Arial" font-size="29" font-weight="700" fill="white">Burning Magnesium</text>
+  <circle cx="470" cy="210" r="150" fill="url(#glow)"/>
+  <path d="M210 330 C350 280 420 250 475 205" fill="none" stroke="#cbd4dc" stroke-width="18" stroke-linecap="round"/>
+  <path d="M475 215 C420 170 456 100 480 72 C493 130 557 155 512 229 C500 246 481 245 475 215Z" fill="#fff" stroke="#fff6a1" stroke-width="15"/>
+  <path d="M475 220 C455 188 479 150 490 132 C500 172 526 188 501 224Z" fill="#fffac9"/>
+  <rect x="650" y="115" width="245" height="190" rx="18" fill="#ffffff" fill-opacity=".1" stroke="#8db5dc"/>
+  <text x="772" y="158" text-anchor="middle" font-family="Arial" font-size="21" font-weight="700" fill="#fff">Observation</text>
+  <text x="675" y="200" font-family="Arial" font-size="18" fill="#e6f2ff">• Dazzling white light</text><text x="675" y="238" font-family="Arial" font-size="18" fill="#e6f2ff">• White powder forms</text><text x="675" y="276" font-family="Arial" font-size="18" fill="#e6f2ff">2Mg + O₂ → 2MgO</text>
+</svg>
