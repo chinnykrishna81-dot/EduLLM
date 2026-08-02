@@ -10,6 +10,10 @@
 6. The application validates immutable Question IDs and applies the complete upload in one database transaction.
 7. Approve reviewed questions. Approved records move to the separate **Approved** tab.
 
+For questions already completed by ChatGPT or another AI tool, use **Upload questions directly**. This accepts the same two-sheet workbook or JSON structure and inserts new Question IDs without enrichment or AI quality analysis. The supplied `status` is preserved, so `staged` rows remain in Staging and `approved` rows enter the Approved bank immediately. Only storage-safety checks—required Question ID/text, unique IDs in the upload, and no collision with an existing Question ID—are applied.
+
+Staging supports **Delete selected** and **Delete all staging**. Both actions require confirmation and are transactionally restricted to non-approved records; approved questions are never removed by these controls.
+
 ## Excel workbook
 
 The workbook has two sheets:
@@ -28,6 +32,8 @@ Use **Download Excel template** for sample Type 1 and Type 2 records. In a stagi
 - Unknown, missing or repeated Question IDs reject the complete upload.
 - The database update is transactional: either every supplied record is updated or none is.
 - Teachers must review the result before approval.
+
+These review requirements apply to the enrichment workflow. Direct AI import is an explicit bypass for already completed question sets and preserves the workbook's supplied status.
 
 ## Pattern ID
 

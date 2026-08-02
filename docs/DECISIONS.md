@@ -6,6 +6,7 @@ This log captures decisions made during product discovery. Update it when a deci
 
 - Check Your Knowledge belongs to a Topic, appears after its last Subtopic, and is an unscored unlimited-retake self-check. Its latest colour is session-only; formal mastery comes from Cycle Tests.
 - Question Bank enrichment matches existing records exclusively by immutable Question ID. Question text is editable and may be replaced without changing identity; source references are preserved. Offline exchange uses a two-sheet Excel workbook, while re-upload also accepts JSON.
+- A separate direct AI Question Bank import accepts completed two-sheet workbooks or JSON without enrichment or AI quality analysis and preserves supplied statuses. It still rejects missing/repeated IDs, missing question text and existing-ID collisions because those are storage-integrity constraints. Staging provides confirmed selective and all-record deletion that cannot delete approved questions.
 
 1. EduLLM has two applications: Content Management and Student Learning.
 2. Both applications share one backend and canonical data store.

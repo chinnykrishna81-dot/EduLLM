@@ -17,6 +17,8 @@ Updated: 23 July 2026
 - Teachers can download a two-sheet Excel template or the current staging queue. Enriched `.xlsx` or JSON can be uploaded using immutable Question IDs.
 - Question wording can be overwritten during enrichment without changing identity or source references. Unknown or repeated IDs reject the upload.
 - Enrichment updates are transactional. Approved records leave Staging and appear under Approved.
+- Completed AI-generated two-sheet workbooks or JSON can be imported directly without enrichment or AI analysis. Supplied question status is preserved; minimum ID/text and collision checks protect storage integrity.
+- Staging questions can be deleted selectively or all at once. Bulk deletion never includes approved records and clears duplicate references transactionally.
 
 This is the current handover record for the local EduLLM prototype. Product rules in the main documents supersede earlier chat discussions.
 

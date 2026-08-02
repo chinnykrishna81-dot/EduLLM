@@ -63,7 +63,7 @@ The staged image name is retained without requiring an extension. When the Chapt
 
 - The left hierarchy displays Topic and Subtopic only; internal pages remain hidden.
 - All internal pages in the current Subtopic open together and scroll continuously.
-- Compact Previous/Next page controls and keyboard Left/Right arrows scroll one internal page at a time.
+- Compact Previous/Next controls and keyboard Left/Right arrows scroll one internal page at a time.
 - Page controls do not unlock content and do not show selectable page dots.
 - One prominent Continue button appears only after the final page of the Subtopic.
 - Continue completes that Subtopic, opens every page in the next Subtopic and scrolls to its beginning.
