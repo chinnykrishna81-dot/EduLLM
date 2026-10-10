@@ -38,3 +38,7 @@ storage/uploads/*
 .idea/
 .vscode/
 apps/content-pipeline/.env
+apps/content-pipeline/uploads/
+apps/content-pipeline/data/
+apps/content-pipeline/__pycache__/
+apps/content-pipeline/.venv/
