@@ -37,3 +37,4 @@ storage/uploads/*
 # Local editor and operating-system state
 .idea/
 .vscode/
+apps/content-pipeline/.env

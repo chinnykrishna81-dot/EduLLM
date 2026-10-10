@@ -8,7 +8,7 @@ import express from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const allowedOrigins = (process.env.WEB_ORIGINS || process.env.CMS_ORIGIN || 'http://localhost:5174,http://localhost:5175').split(',').map(value => value.trim());
+  const allowedOrigins = (process.env.WEB_ORIGINS || process.env.CMS_ORIGIN || 'http://localhost:5174,http://localhost:5175,http://localhost:5176').split(',').map(value => value.trim());
   const app = await NestFactory.create(AppModule, { cors: { origin: allowedOrigins }, bodyParser: false });
   app.use(express.json({ limit: '5mb' }));
   app.use(express.urlencoded({ extended: true, limit: '5mb' }));

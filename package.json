@@ -4,8 +4,9 @@
   "private": true,
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "dev": "concurrently -n api,cms,student -c green,blue,magenta \"npm run dev -w @edullm/api\" \"npm run dev -w @edullm/content-management\" \"npm run dev -w @edullm/student-learning\"",
-    "build": "npm run build -w @edullm/api && npm run build -w @edullm/content-management && npm run build -w @edullm/student-learning",
+    "dev": "concurrently -n api,cms,student,studio -c green,blue,magenta,cyan \"npm run dev -w @edullm/api\" \"npm run dev -w @edullm/content-management\" \"npm run dev -w @edullm/student-learning\" \"npm run dev -w @edullm/content-studio\"",
+    "dev:studio": "concurrently -n api,studio -c green,cyan \"npm run dev -w @edullm/api\" \"npm run dev -w @edullm/content-studio\"",
+    "build": "npm run build -w @edullm/api && npm run build -w @edullm/content-management && npm run build -w @edullm/student-learning && npm run build -w @edullm/content-studio",
     "test": "npm run test -w @edullm/content-schema && npm run test -w @edullm/api && npm run test -w @edullm/content-management && npm run test -w @edullm/student-learning",
     "db:setup": "npm run db:setup -w @edullm/api",
     "db:seed": "tsx scripts/seed-platform-demo.ts",
