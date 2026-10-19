@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Put, Query, UploadedFile, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Put, Query, Req, UploadedFile, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -22,8 +22,10 @@ export class PlatformController {
   @Post('library/chapter-packages/validate') validateChapterPackage(@Body() body:any){return this.platform.validateChapterPackage(body)}
   @Post('library/chapter-packages/import') importChapterPackage(@Body() body:any){return this.platform.importChapterPackage(body)}
   @Put('library/chapters/:id') updateChapter(@Param('id') id:string,@Body() body:any){return this.platform.updateChapter(id,body)}
+  @Post('library/chapters/:id/topics') importTopics(@Param('id') id:string,@Body() body:any){return this.platform.importTopics(id,body)}
   @Delete('library/chapters/:id') deleteChapter(@Param('id') id:string){return this.platform.deleteChapter(id)}
   @Put('library/chapters/:id/cycle-test') updateCycleTest(@Param('id') id:string,@Body() body:any){return this.platform.updateCycleTest(id,body)}
+  @Delete('library/chapters/:id/cycle-test/forms') deleteCycleTestForms(@Param('id') id:string){return this.platform.deleteCycleTestForms(id)}
   @Patch('library/chapters/:id/status/:status') reviewChapter(@Param('id') id:string,@Param('status') status:string){return this.platform.reviewChapter(id,status)}
   @Get('subjects') listSubjects(){return this.platform.listSubjects()}
   @Get('subjects/:id') getSubject(@Param('id') id:string){return this.platform.getSubject(id)}
@@ -37,10 +39,18 @@ export class PlatformController {
   @Get('offerings') listOfferings(){return this.platform.listOfferings()}
   @Get('offerings/:id') getOffering(@Param('id') id:string){return this.platform.getOffering(id)}
   @Post('offerings') createOffering(@Body() body:any){return this.platform.createOffering(body)}
+  @Patch('offerings/:id') updateOffering(@Param('id') id:string,@Body() body:any){return this.platform.updateOffering(id,body)}
+  @Delete('offerings/:id') deleteOffering(@Param('id') id:string){return this.platform.deleteOffering(id)}
   @Put('offerings/:id/subjects') setSubjects(@Param('id') id:string,@Body() body:any){return this.platform.setOfferingSubjects(id,body)}
   @Post('offerings/:id/publish') publish(@Param('id') id:string){return this.platform.publishOffering(id)}
+  @Post('offerings/:id/unpublish') unpublish(@Param('id') id:string){return this.platform.unpublishOffering(id)}
   @Get('catalogue/courses') catalogue(){return this.platform.listOfferings(true)}
   @Get('catalogue/courses/:id') catalogueCourse(@Param('id') id:string){return this.platform.getOffering(id,true)}
+  @Get('student/enrolments') studentEnrolments(@Req() req:any){return this.platform.studentEnrolments(req.user.id)}
+  @Post('catalogue/courses/:id/enrol') enrol(@Req() req:any,@Param('id') id:string){return this.platform.enrol(req.user.id,id)}
+  @Get('catalogue/courses/:id/access') access(@Req() req:any,@Param('id') id:string){return this.platform.hasAccess(req.user.id,id)}
   @Get('catalogue/subjects/:id/index') subjectIndex(@Param('id') id:string){return this.platform.getSubject(id)}
+  @Get('catalogue/subjects/:id/chapters') subjectChapters(@Param('id') id:string){return this.platform.catalogueSubjectChapters(id)}
   @Get('catalogue/chapters/:id/media') catalogueChapterMedia(@Param('id') id:string){return this.platform.chapterMedia(id)}
+  @Get('catalogue/chapters/:id/assessment') catalogueChapterAssessment(@Param('id') id:string){return this.platform.chapterAssessmentUnified(id)}
 }

@@ -1,6 +1,6 @@
 # EduLLM — Migration to Personal Laptop
 
-This guide sets up the full EduLLM monorepo + Content Pipeline on a fresh macOS machine.
+This guide sets up the full EduLLM monorepo on a fresh macOS machine.
 
 ---
 
@@ -12,15 +12,10 @@ Install these first if not already present:
 # Node.js 20+ (check: node --version)
 brew install node
 
-# Python 3.11+ (check: python3 --version)
-brew install python@3.12
-
+# Python 3.11+ (not needed for new simplified setup)
 # PostgreSQL via Postgres.app
 # Download from: https://postgresapp.com/
 # Install and start it — keep it running in menu bar
-
-# Poppler (required for PDF-to-image conversion)
-brew install poppler
 ```
 
 ---
@@ -30,7 +25,7 @@ brew install poppler
 **Option A: From git**
 ```bash
 cd ~/Documents
-git clone <repo-url> EduLlm
+git clone https://github.com/chinnykrishna81-dot/EduLLM.git EduLlm
 cd EduLlm
 ```
 
@@ -96,14 +91,10 @@ Create environment file for the API:
 
 ```bash
 cat > apps/api/.env << 'EOF'
-DATABASE_URL=postgresql://$(whoami):edullm_dev@localhost:5432/edullm
+DATABASE_URL=postgresql://YOUR_MACOS_USERNAME:edullm_dev@localhost:5432/edullm
 EOF
 ```
 
-Or manually create `apps/api/.env` with:
-```
-DATABASE_URL=postgresql://YOUR_MACOS_USERNAME:edullm_dev@localhost:5432/edullm
-```
 Replace `YOUR_MACOS_USERNAME` with the output of `whoami`.
 
 Update the dev script in `apps/api/package.json` to include DATABASE_URL:
@@ -118,53 +109,32 @@ npm run db:setup -w @edullm/api
 
 ---
 
-## Step 5 — Set Up Content Pipeline (Python)
+## Step 5 — Place Content Files
+
+Copy or link the `EDULLM_Content` folder to the project root:
 
 ```bash
-cd ~/Documents/EduLlm/apps/content-pipeline
+# If you have the content folder separately, copy it:
+cp -r /path/to/EDULLM_Content ~/Documents/EduLlm/EDULLM_Content
 
-# Create virtual environment
-python3 -m venv .venv
-
-# Install all dependencies
-.venv/bin/pip install -r requirements.txt
-```
-
-Create `.env` file (never commit this):
-```bash
-cat > .env << 'EOF'
-ANTHROPIC_API_KEY=PASTE_YOUR_KEY_HERE
-OPENAI_API_KEY=PASTE_YOUR_KEY_HERE_WHEN_READY
-OPENAI_IMAGE_MODEL=dall-e-3
-EDULLM_API_URL=http://localhost:3001/api
-UPLOAD_DIR=./uploads
-DB_PATH=./data/pipeline.json
-EOF
-```
-
-Get your **Anthropic API key** from: https://platform.claude.com → API Keys → Create Key
-
----
-
-## Step 6 — Verify Scanned PDF Support
-
-The purchased CBSE PDFs are image-based (scanned). The pipeline uses Claude Vision
-to read them. Verify poppler is installed (required for pdf2image):
-
-```bash
-which pdftoppm  # should return a path
-```
-
-If not found:
-```bash
-brew install poppler
+# The folder structure should look like:
+# EduLlm/
+#   EDULLM_Content/
+#     manifest.json
+#     EduLLM_Chemical_Reactions_Offline_Fixed/
+#       chapter.json
+#       images/
+#     EduLLM_62_Illustrated_Final/
+#       question_bank.json
+#       images/
+#     question_bank.json
 ```
 
 ---
 
-## Step 7 — Start All Services
+## Step 6 — Start All Services
 
-Open **4 terminal tabs** and run one command in each:
+Open **2 terminal tabs** and run one command in each:
 
 **Tab 1 — API (port 3001)**
 ```bash
@@ -173,60 +143,90 @@ npm run dev -w @edullm/api
 ```
 Wait for: `EduLLM API running at http://localhost:3001/api`
 
-**Tab 2 — Content Studio (port 5176)**
+**Tab 2 — Teacher Portal (port 5174)**
 ```bash
 cd ~/Documents/EduLlm
-npm run dev -w @edullm/content-studio
+npm run dev -w @edullm/content-management
 ```
-Wait for: `Local: http://localhost:5176/`
+Wait for: `Local: http://localhost:5174/`
 
-**Tab 3 — Content Pipeline / Python (port 8000)**
-```bash
-cd ~/Documents/EduLlm/apps/content-pipeline
-set -a && source .env && set +a
-.venv/bin/python main.py
-```
-Wait for: `Uvicorn running on http://0.0.0.0:8000`
-
-**Tab 4 — Student App (port 5175) — optional**
+**Tab 3 — Student App (port 5175) — optional**
 ```bash
 cd ~/Documents/EduLlm
 npm run dev -w @edullm/student-learning
 ```
 
+Or start everything at once:
+```bash
+npm run dev:cms
+```
+
 ---
 
-## Step 8 — Verify Everything Works
+## Step 7 — Verify Everything Works
 
 ```bash
 # API health check
 curl http://localhost:3001/api/health
 
-# Pipeline check
-curl http://localhost:8000/chapters
+# Content packages check
+curl http://localhost:3001/api/content/packages
 
-# Content Studio — open in browser
-open http://localhost:5176
+# Teacher Portal — open in browser
+open http://localhost:5174
 ```
-
-All three should respond without errors.
 
 ---
 
-## Step 9 — Process First Chapter
+## Step 8 — Using the Teacher Portal
 
-1. Open http://localhost:5176 in browser
-2. Click **"New Chapter"**
-3. Fill in: Subject = Science, Chapter Number = 1, Name = Chemical Reactions and Equations
-4. Upload your **3 PDFs**:
-   - Notes PDF (Full Concept notes)
-   - Q&A PDF (Questions and Answers)
-   - MCQ PDF (Top 100 MCQs)
-5. Click **"Start AI Processing"**
-6. Pipeline runs 6 steps — takes 3–8 minutes
-7. When complete, click **"Review Content"**
-8. Review concept pages, questions, image specs
-9. Click **"Publish"** to push to EduLLM
+1. Open http://localhost:5174 in browser
+2. The sidebar lists all content packages from `EDULLM_Content/`
+3. Click a chapter to load it
+4. Browse sections (topics) in the sidebar
+5. Each section shows:
+   - Definition, Key Points, Equations, Worked Example
+   - Subtopics detail
+   - Images from the chapter
+   - **Test Your Knowledge** — 10 MCQs at the bottom
+6. Click **Question Bank** tab to view:
+   - Type 1 MCQs (100 questions, filterable by topic)
+   - Type 2 Illustrated questions (62 questions with SVG images)
+
+---
+
+## Adding More Chapters
+
+When new chapter content is generated, add it to `EDULLM_Content/` and register it in `EDULLM_Content/manifest.json`:
+
+```json
+{
+  "packages": [
+    {
+      "id": "cbse10-sci-chem-01",
+      "subject": "Science",
+      "grade": 10,
+      "board": "CBSE",
+      "chapterFile": "EduLLM_Chemical_Reactions_Offline_Fixed/chapter.json",
+      "chapterImagesDir": "EduLLM_Chemical_Reactions_Offline_Fixed/images",
+      "mcqFile": "question_bank.json",
+      "type2File": "EduLLM_62_Illustrated_Final/question_bank.json",
+      "type2ImagesDir": "EduLLM_62_Illustrated_Final/images"
+    },
+    {
+      "id": "cbse10-sci-acids-02",
+      "subject": "Science",
+      "grade": 10,
+      "board": "CBSE",
+      "chapterFile": "EduLLM_Acids_Bases/chapter.json",
+      "chapterImagesDir": "EduLLM_Acids_Bases/images",
+      "mcqFile": "EduLLM_Acids_Bases/question_bank_mcq.json",
+      "type2File": "EduLLM_Acids_Bases/question_bank_type2.json",
+      "type2ImagesDir": "EduLLM_Acids_Bases/images"
+    }
+  ]
+}
+```
 
 ---
 
@@ -235,17 +235,14 @@ All three should respond without errors.
 | Service | Port | URL |
 |---|---|---|
 | EduLLM API | 3001 | http://localhost:3001/api |
-| Content Studio | 5176 | http://localhost:5176 |
-| CMS (optional) | 5174 | http://localhost:5174 |
-| Student App (optional) | 5175 | http://localhost:5175 |
-| Content Pipeline | 8000 | http://localhost:8000 |
+| Teacher Portal (CMS) | 5174 | http://localhost:5174 |
+| Student App | 5175 | http://localhost:5175 |
 
 ---
 
 ## Notes
 
-- Content Pipeline stores data in `apps/content-pipeline/data/pipeline.json` (local JSON DB)
-- Uploaded PDFs are stored in `apps/content-pipeline/uploads/<chapter-id>/`
+- Content is generated by an external AI tool and placed in `EDULLM_Content/`
+- No Python / AI pipeline needed — content is pre-generated JSON
 - Never commit `.env` files — they are in `.gitignore`
-- API keys: Anthropic ($10 credit = enough for all 27 chapters), OpenAI (for image generation, add later)
-- Scanned PDFs: pipeline uses Claude Vision API — no OCR software needed
+- The API serves content files from `EDULLM_Content/` at `/api/content/packages`

@@ -79,7 +79,8 @@ export const LearningPageBlockSchema = z.discriminatedUnion('type',[
     id,type:z.literal('image'),mediaRef:z.string().min(1),
     layout:z.enum(['image-left','image-right','centered','full-width']).default('centered'),
     size:z.enum(['small','medium','large']).default('medium'),caption:text,altText:text
-  })
+  }),
+  z.object({id,type:z.literal('image-inline'),src:z.string().min(1),altText:text,caption:text})
 ]);
 export const LearningPageSchema = z.object({
   id, title: z.string().min(1), description: text, sequence, pageType: z.enum(['introduction','learning','worked_example','recap']).default('learning'),

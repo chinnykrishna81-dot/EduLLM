@@ -1,79 +1,580 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {platformApi} from './api';
 import {RichTextEditor} from './RichTextEditor';
 import './assessment-builder.css';
 
-const defaults=[
-  {id:'section-1',title:'Section 1 · MCQ',questionType:'type1',format:'mcq',questionsPresented:5,questionsRequired:5,marksPerQuestion:1},
-  {id:'section-2',title:'Section 2 · Fill blanks',questionType:'type1',format:'fill_blank',questionsPresented:5,questionsRequired:5,marksPerQuestion:1},
-  {id:'section-3',title:'Section 3 · Short answer',questionType:'type2',format:'guided',questionsPresented:5,questionsRequired:5,marksPerQuestion:3},
-  {id:'section-4',title:'Section 4 · Long answer',questionType:'type2',format:'guided',questionsPresented:4,questionsRequired:3,marksPerQuestion:5}
+const ALL_DIFF = ['easy','medium','hard'] as const;
+type Diff = 'easy'|'medium'|'hard';
+
+// Difficulty sort weight — hard questions repeat first when all are used
+const DIFF_WEIGHT: Record<string,number> = { hard:0, medium:1, easy:2 };
+
+const defaults = [
+  {id:'section-1',title:'Section 1 · MCQ',       questionType:'type1',format:'mcq',       questionsPresented:5,questionsRequired:5,marksPerQuestion:1,difficulties:[...ALL_DIFF]},
+  {id:'section-2',title:'Section 2 · Fill blanks',questionType:'type1',format:'fill_blank',questionsPresented:5,questionsRequired:5,marksPerQuestion:1,difficulties:[...ALL_DIFF]},
+  {id:'section-3',title:'Section 3 · Short answer',questionType:'type2',format:'guided',   questionsPresented:5,questionsRequired:5,marksPerQuestion:3,difficulties:[...ALL_DIFF]},
+  {id:'section-4',title:'Section 4 · Long answer', questionType:'type2',format:'guided',   questionsPresented:4,questionsRequired:3,marksPerQuestion:5,difficulties:['medium','hard']},
 ];
-const t1={id:'type1-new-001',type:'type1',format:'mcq',topicId:'topic-id',difficulty:'medium',marks:1,question:'Enter the question',options:['Correct option','Close distractor 1','Close distractor 2'],correctAnswer:'Correct option',explanation:'Explain the answer.',mediaRefs:[]};
-const t2={id:'type2-new-001',type:'type2',topicId:'topic-id',difficulty:'medium',marks:3,totalMarks:3,question:'Enter the problem or descriptive question.',steps:[{id:'step-1',prompt:'Identify the first point.',options:['Correct point','Close choice'],answer:'Correct point',marks:1,isCritical:true,negativeMarks:1,explanation:'Explain this step.'},{id:'step-2',prompt:'Choose the next step.',options:['Correct step','Close choice'],answer:'Correct step',marks:2,isCritical:false,negativeMarks:0,explanation:'Explain this step.'}],finalAnswer:'Consolidated final answer.',mediaRefs:[]};
 
-export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close,save}:{kind:'Cycle Test'|'Semester Test';value:any;sourceBank?:any[];questionCount?:number;chapterId?:string;busy:boolean;close:()=>void;save:(value:any)=>void}){
-  const [data,setData]=useState<any>({title:value?.title||kind,totalMarks:value?.totalMarks||40,durationMinutes:value?.durationMinutes||(kind==='Cycle Test'?40:90),resultDelayHours:value?.resultDelayHours??24,retakeAfterDays:value?.retakeAfterDays||30,formCycleCount:value?.formCycleCount||5,greenPercent:value?.mastery?.greenPercent??90,yellowPercent:value?.mastery?.yellowPercent??60,sections:value?.sections?.length?value.sections:defaults,questionBank:sourceBank.length?sourceBank:(value?.questionBank||[]),forms:value?.forms||[]});
-  const [active,setActive]=useState(1),[json,setJson]=useState(''),[message,setMessage]=useState(''),[editing,setEditing]=useState<any>(),[media,setMedia]=useState<any[]>([]);
-  const mediaChapterId=chapterId||sourceBank[0]?.chapterId;
-  useEffect(()=>{if(mediaChapterId)platformApi.chapterMedia(mediaChapterId).then(setMedia).catch(()=>setMedia([]))},[mediaChapterId]);
-  const update=(key:string,next:any)=>setData((current:any)=>({...current,[key]:next}));
+/** Return step marks when a type2 question is placed in a section */
+function stepMarks(question: any, sectionMarksEach: number): number {
+  const steps = question.steps?.length || 1;
+  return Math.round((sectionMarksEach / steps) * 100) / 100;
+}
+
+// ── Cycle Test Preview helpers — replicate student CYK look ───────────────────
+
+const S = {
+  shell:    { fontFamily:'"72",Arial,sans-serif', fontSize:17, color:'#1d2d3e', background:'#f4f5f6' } as const,
+  testCard: { background:'#fff', border:'2px solid #0788f5', padding:30, marginBottom:0 } as const,
+  factGrid: { display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, margin:'20px 0' } as const,
+  fact:     { background:'#edf4fa', padding:14, fontSize:13 } as const,
+  factVal:  { fontSize:18, fontWeight:800, display:'block' } as const,
+  sectionBand: { background:'#0a6ed1', color:'#fff', padding:'14px 20px', display:'flex', justifyContent:'space-between', alignItems:'center' } as const,
+  qCard:    { background:'#fff', padding:26, margin:'0 0 0 0', borderLeft:'none', borderRight:'none', borderBottom:'1px solid #d0d8df' } as const,
+  qLabel:   { color:'#0a6ed1', fontSize:12, fontWeight:800, letterSpacing:'.08em', display:'block', marginBottom:8 } as const,
+  qText:    { fontSize:20, lineHeight:1.5, margin:'0 0 16px', fontWeight:650 } as const,
+  optGrid:  { display:'grid', gap:10 } as const,
+  optRow:   { display:'flex', alignItems:'center', gap:14, border:'2px solid #c2cbd3', padding:15, cursor:'default', background:'#fff' } as const,
+  fillBox:  { border:'2px solid #aab8c4', borderRadius:4, padding:14, fontSize:17, color:'#90a0ae', fontStyle:'italic', marginTop:8 } as const,
+  stepSec:  { borderTop:'1px solid #d5dce2', paddingTop:20, marginTop:20 } as const,
+  stepLbl:  { fontWeight:700, display:'block', marginBottom:10 } as const,
+  tray:     { display:'flex', flexWrap:'wrap' as const, gap:9, marginBottom:10 } as const,
+  choice:   { display:'flex', alignItems:'center', gap:8, border:'1px solid #aebbc6', background:'#fff', padding:'11px 13px', cursor:'default', opacity:.85 } as const,
+  dropZone: { border:'2px dashed #a8b7c3', background:'#f7f9fa', padding:13, color:'#51687b', fontSize:14 } as const,
+  instr:    { color:'#50677b', margin:'0 0 14px', fontSize:16 } as const,
+  stepMeta: { fontSize:11, color:'#6b8494', marginTop:6 } as const,
+};
+
+function FpType1({question,num,sectionMarks}:{question:any;num:number;sectionMarks:number}){
+  const isFill = question.format==='fill_blank'||question.format==='one_line'||(question.options||[]).length===0;
+  return <div style={S.qCard}>
+    <span style={S.qLabel}>Q{num} · {String(question.format||'MCQ').replace('_',' ').toUpperCase()} · {sectionMarks} mark{sectionMarks!==1?'s':''}</span>
+    <p style={S.qText}>{question.question}</p>
+    {isFill
+      ? <div style={S.fillBox}>Your answer: ___________________________</div>
+      : <div style={S.optGrid}>
+          {(question.options||[]).map((opt:string,i:number)=>(
+            <label key={i} style={S.optRow}>
+              <input type="radio" disabled style={{width:18,height:18,flexShrink:0}}/>
+              <span>{opt}</span>
+            </label>
+          ))}
+        </div>
+    }
+  </div>;
+}
+
+function FpType2({question,num,sectionMarks}:{question:any;num:number;sectionMarks:number}){
+  const perStep = Math.round((sectionMarks/(question.steps?.length||1))*100)/100;
+  return <div style={S.qCard}>
+    <span style={S.qLabel}>Q{num} · GUIDED TYPE 2 · {sectionMarks} marks total</span>
+    <p style={S.qText}>{question.question}</p>
+    <p style={S.instr}>Choose or drag one answer for every step.</p>
+    {(question.steps||[]).map((step:any,si:number)=>(
+      <div key={step.id||si} style={S.stepSec}>
+        <b style={S.stepLbl}>{si+1}. {step.prompt}</b>
+        <div style={S.tray}>
+          {(step.options||[]).map((opt:string,oi:number)=>(
+            <button key={oi} style={S.choice} disabled><i style={{color:'#728596'}}>⠿</i>{opt}</button>
+          ))}
+        </div>
+        <div style={S.dropZone}>Drop or select your answer here</div>
+        <span style={S.stepMeta}>{perStep} mark{perStep!==1?'s':''}</span>
+      </div>
+    ))}
+  </div>;
+}
+
+function FormPreview({form,sections,bank,testTitle,durationMinutes,totalMarks}:{
+  form:any; sections:any[]; bank:any[];
+  testTitle:string; durationMinutes:number; totalMarks:number;
+}){
+  let counter = 0;
+  const sectionData = sections.map((section,si)=>{
+    const fs = form.sections.find((x:any)=>x.sectionId===section.id);
+    const qs = (fs?.questionIds||[]).map((id:string)=>bank.find((q:any)=>q.id===id)).filter(Boolean);
+    return { section, si, questions: qs.map((q:any)=>({...q,globalNum:++counter})) };
+  }).filter(sd=>sd.questions.length>0);
+
+  return <div style={S.shell}>
+    {/* ── Test card header ── */}
+    <div style={S.testCard}>
+      <small style={{ color:'#0a6ed1', fontSize:12, fontWeight:800, letterSpacing:'.08em' }}>
+        CYCLE TEST · FORM {form.number}
+      </small>
+      <h2 style={{ fontSize:28, margin:'8px 0 20px', lineHeight:1.2 }}>{testTitle}</h2>
+      <div style={S.factGrid}>
+        {([
+          ['Total Marks', totalMarks],
+          ['Duration',    `${durationMinutes} min`],
+          ['Sections',    sections.length],
+          ['Results in',  `${form.resultDelayHours??24} hrs`],
+        ] as [string,any][]).map(([label,val])=>(
+          <div key={label} style={S.fact}>
+            <span style={S.factVal}>{val}</span>{label}
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {counter===0 && <p style={{padding:20,color:'#8a6a5a',fontStyle:'italic',fontSize:13}}>No questions selected in this form yet.</p>}
+
+    {/* ── Sections ── */}
+    {sectionData.map(({section,si,questions})=>{
+      const first = questions[0].globalNum, last = questions[questions.length-1].globalNum;
+      return <div key={section.id} style={{marginTop:20}}>
+        <div style={S.sectionBand}>
+          <div>
+            <div style={{fontWeight:800,fontSize:15}}>Section {si+1}: {section.title}</div>
+            <div style={{fontSize:12,opacity:.85,marginTop:3}}>
+              Q{first}–Q{last} · {section.questionType.toUpperCase()} · {section.marksPerQuestion} mark{section.marksPerQuestion!==1?'s':''} each
+            </div>
+          </div>
+          <div style={{fontWeight:800,fontSize:20,letterSpacing:-.5}}>
+            {questions.length*section.marksPerQuestion} M
+          </div>
+        </div>
+        <div style={{border:'1px solid #d0d8df',borderTop:'none'}}>
+          {questions.map((q:any)=>
+            q.type==='type1'
+              ? <FpType1 key={q.id} question={q} num={q.globalNum} sectionMarks={section.marksPerQuestion}/>
+              : <FpType2 key={q.id} question={q} num={q.globalNum} sectionMarks={section.marksPerQuestion}/>
+          )}
+        </div>
+      </div>;
+    })}
+  </div>;
+}
+
+export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close,save}:{
+  kind:'Cycle Test'|'Semester Test'; value:any; sourceBank?:any[];
+  questionCount?:number; chapterId?:string; busy:boolean;
+  close:()=>void; save:(value:any)=>Promise<void>|void;
+}){
+  const [data,setData] = useState<any>({
+    title:            value?.title || kind,
+    totalMarks:       value?.totalMarks || 40,
+    durationMinutes:  value?.durationMinutes || (kind==='Cycle Test' ? 40 : 90),
+    resultDelayHours: value?.resultDelayHours ?? 24,
+    retakeAfterDays:  value?.retakeAfterDays || 30,
+    formCycleCount:   value?.formCycleCount || 5,
+    practicePercent:  value?.practicePercent ?? 0,
+    greenPercent:     value?.mastery?.greenPercent ?? 90,
+    yellowPercent:    value?.mastery?.yellowPercent ?? 60,
+    sections:         value?.sections?.length
+                        ? value.sections.map((s:any) => ({difficulties:[...ALL_DIFF],...s}))
+                        : defaults,
+    questionBank:     sourceBank.length ? sourceBank : (value?.questionBank || []),
+    forms:            value?.forms || [],
+  });
+
+  const [active,setActive]   = useState(1);
+  const [preview,setPreview] = useState(false);
+  const [message,setMessage] = useState('');
+  const [saveErr,setSaveErr] = useState('');
+  const [media,setMedia]     = useState<any[]>([]);
+  const prevSectionsRef = useRef<any>(null);
+
+  const mediaChapterId = chapterId || sourceBank[0]?.chapterId;
   useEffect(()=>{
-    setData((current:any)=>({...current,forms:Array.from({length:current.formCycleCount},(_,i)=>current.forms[i]||{number:i+1,status:'draft',sections:current.sections.map((s:any)=>({sectionId:s.id,questionIds:[]}))})}));
-    setActive(n=>Math.min(n,data.formCycleCount));
+    if(mediaChapterId) platformApi.chapterMedia(mediaChapterId).then(setMedia).catch(()=>setMedia([]));
+  },[mediaChapterId]);
+
+  const update = (key:string, next:any) => setData((c:any)=>({...c,[key]:next}));
+
+  // Keep form count in sync
+  useEffect(()=>{
+    setData((c:any)=>({...c,forms:Array.from({length:c.formCycleCount},(_,i)=>
+      c.forms[i] || {number:i+1,status:'draft',sections:c.sections.map((s:any)=>({sectionId:s.id,questionIds:[]}))}
+    )}));
+    setActive(n => Math.min(n, data.formCycleCount));
   },[data.formCycleCount]);
+
+  // When section structure changes after initial load: wipe questionIds so stale
+  // assignments don't survive into the new structure — user must re-propose.
+  // Uses a ref comparison instead of didMount so React Strict Mode's double-invoke
+  // doesn't wipe pre-loaded form question IDs on the second fire.
   useEffect(()=>{
-    setData((current:any)=>({...current,forms:current.forms.map((paper:any)=>({...paper,sections:current.sections.map((s:any)=>paper.sections.find((x:any)=>x.sectionId===s.id)||{sectionId:s.id,questionIds:[]})}))}));
+    const prev = prevSectionsRef.current;
+    prevSectionsRef.current = data.sections;
+    if(prev === null || prev === data.sections) return;
+    setData((c:any)=>{
+      const newMarks=c.sections.reduce((n:number,s:any)=>n+Number(s.questionsRequired)*Number(s.marksPerQuestion),0);
+      return {
+        ...c,
+        totalMarks:newMarks,
+        forms:c.forms.map((paper:any)=>({
+          ...paper,status:'draft',
+          sections:c.sections.map((s:any)=>({sectionId:s.id,questionIds:[]}))
+        }))
+      };
+    });
   },[data.sections]);
-  const paper=data.forms[active-1],selected=(id:string)=>paper?.sections.find((x:any)=>x.sectionId===id)?.questionIds||[];
-  const eligible=(s:any)=>data.questionBank.filter((q:any)=>q.type===s.questionType&&Number(q.marks??q.totalMarks)===Number(s.marksPerQuestion)&&(s.format==='mixed'||s.questionType==='type2'||q.format===s.format));
-  const complete=(p:any)=>data.sections.every((s:any)=>(p?.sections.find((x:any)=>x.sectionId===s.id)?.questionIds.length||0)===Number(s.questionsPresented));
-  const choose=(sectionId:string,ids:string[])=>update('forms',data.forms.map((p:any,i:number)=>i===active-1?{...p,status:'draft',sections:p.sections.map((s:any)=>s.sectionId===sectionId?{...s,questionIds:ids}:s)}:p));
-  const marks=data.sections.reduce((n:number,s:any)=>n+Number(s.questionsRequired)*Number(s.marksPerQuestion),0);
-  const proposeForms=()=>{const counts=new Map<string,number>(),forms=Array.from({length:data.formCycleCount},(_,formIndex)=>{const usedInForm=new Set<string>(),groupsInForm=new Set<string>();const sections=data.sections.map((section:any)=>{const candidates=eligible(section).sort((a:any,b:any)=>(counts.get(a.id)||0)-(counts.get(b.id)||0)||String(a.id).localeCompare(String(b.id))),chosen:any[]=[];for(const question of candidates){const group=question.duplicateGroupId||question.id;if(usedInForm.has(question.id)||groupsInForm.has(group))continue;chosen.push(question);usedInForm.add(question.id);groupsInForm.add(group);counts.set(question.id,(counts.get(question.id)||0)+1);if(chosen.length===Number(section.questionsPresented))break}return {sectionId:section.id,questionIds:chosen.map(question=>question.id)}});return {number:formIndex+1,status:'draft',sections}}),unused=data.questionBank.filter((question:any)=>!counts.has(question.id));update('forms',forms);setMessage(`${forms.length} form(s) proposed. ${unused.length?`${unused.length} eligible question(s) remain unused because they do not fit the configured sections/capacity.`:'Every eligible Question Bank item is used at least once.'}`)};
-  const loadJson=()=>{try{const parsed=JSON.parse(json),questions=Array.isArray(parsed)?parsed:parsed.questions;if(!Array.isArray(questions))throw new Error('Use a JSON array or {"questions": [...]}.');const bank=[...data.questionBank];questions.forEach((q:any)=>{const i=bank.findIndex((x:any)=>x.id===q.id);i<0?bank.push(q):bank.splice(i,1,q)});update('questionBank',bank);setMessage(`${questions.length} question(s) loaded. Server validation runs when saved.`)}catch(e:any){setMessage(e.message)}};
-  const remove=(id:string)=>{
-    update('questionBank',data.questionBank.filter((q:any)=>q.id!==id));
-    update('forms',data.forms.map((p:any)=>({...p,status:'draft',sections:p.sections.map((s:any)=>({...s,questionIds:s.questionIds.filter((x:string)=>x!==id)}))})));
+
+  const paper    = data.forms[active-1];
+  const selected = (id:string) => paper?.sections.find((x:any)=>x.sectionId===id)?.questionIds || [];
+
+  /** Questions from bank that match section criteria.
+   *  For type2: marks are normalized to sectionMarksPerQuestion so no marks filter.
+   *  For type1: exact marks match required. */
+  const eligible = (s:any): any[] => {
+    const diffs: string[] = s.difficulties?.length ? s.difficulties : [...ALL_DIFF];
+    return data.questionBank.filter((q:any) => {
+      if(q.type !== s.questionType) return false;
+      if(!diffs.includes(q.difficulty || 'medium')) return false;
+      if(s.questionType === 'type1') {
+        if(Number(q.marks ?? q.totalMarks) !== Number(s.marksPerQuestion)) return false;
+        if(s.format !== 'mixed' && q.format !== s.format) return false;
+      }
+      return true;
+    });
   };
-  const saveQuestion=(question:any)=>{
-    const normalized=question.type==='type2'?{...question,marks:question.steps.reduce((sum:number,step:any)=>sum+Number(step.marks||0),0),totalMarks:question.steps.reduce((sum:number,step:any)=>sum+Number(step.marks||0),0)}:question;
-    const previous=data.questionBank.find((item:any)=>item.id===normalized.id);
-    const compatible=(section:any)=>normalized.type===section.questionType&&Number(normalized.marks??normalized.totalMarks)===Number(section.marksPerQuestion)&&(section.format==='mixed'||section.questionType==='type2'||normalized.format===section.format);
-    let affected=0;
-    const forms=data.forms.map((paper:any)=>{let changed=false;const sections=paper.sections.map((selection:any)=>{const section=data.sections.find((item:any)=>item.id===selection.sectionId);if(selection.questionIds.includes(normalized.id)&&!compatible(section)){changed=true;affected++;return {...selection,questionIds:selection.questionIds.filter((id:string)=>id!==normalized.id)}}return selection});return changed?{...paper,status:'draft',sections}:paper});
-    update('questionBank',previous?data.questionBank.map((item:any)=>item.id===normalized.id?normalized:item):[...data.questionBank,normalized]);
-    update('forms',forms);setEditing(undefined);setMessage(affected?`Question saved. Removed from ${affected} incompatible form section(s); affected forms returned to Draft.`:'Question saved successfully.');
+
+  const complete = (p:any) => data.sections.every((s:any) =>
+    (p?.sections.find((x:any)=>x.sectionId===s.id)?.questionIds.length||0) === Number(s.questionsPresented)
+  );
+
+  const choose = (sectionId:string, ids:string[]) =>
+    update('forms', data.forms.map((p:any,i:number) =>
+      i===active-1 ? {...p,status:'draft',sections:p.sections.map((s:any)=>s.sectionId===sectionId?{...s,questionIds:ids}:s)} : p
+    ));
+
+  const marks = data.sections.reduce((n:number,s:any) => n + Number(s.questionsRequired)*Number(s.marksPerQuestion), 0);
+
+  // ── Form proposal algorithm ────────────────────────────────────────────────
+  const proposeForms = () => {
+    // Per-section usage count: sectionId → (questionId → # times used across forms)
+    // Keeps each section's cycling independent so MCQ exhausting its pool
+    // doesn't contaminate the Long-Answer pool.
+    const sectionCounts = new Map<string, Map<string, number>>();
+    data.sections.forEach((s: any) => sectionCounts.set(s.id, new Map()));
+
+    const isPractice = (q: any) => (q.usage || []).includes('chapter_practice');
+
+    // Sort priority within a section:
+    //   1. Truly unused in this section (count=0) AND not a practice question → exhausted first
+    //   2. Unused in this section (count=0) AND is a practice question → practice is secondary pool
+    //   3. Already used in this section (count>0) → repeat only as last resort
+    //   Within each tier: hard → medium → easy
+    const sortForSection = (pool: any[], sCounts: Map<string, number>) =>
+      [...pool].sort((a, b) => {
+        const ca = sCounts.get(a.id) || 0, cb = sCounts.get(b.id) || 0;
+        if (ca !== cb) return ca - cb;                    // fewer uses in this section first
+        const pa = isPractice(a) ? 1 : 0, pb = isPractice(b) ? 1 : 0;
+        if (pa !== pb) return pa - pb;                    // pure-unused before practice-unused
+        return (DIFF_WEIGHT[a.difficulty || 'medium'] ?? 1) - (DIFF_WEIGHT[b.difficulty || 'medium'] ?? 1);
+      });
+
+    const pickFrom = (sorted: any[], need: number, usedInForm: Set<string>, groupsInForm: Set<string>, sCounts: Map<string, number>) => {
+      const chosen: any[] = [];
+      for (const q of sorted) {
+        if (chosen.length >= need) break;
+        const group = q.duplicateGroupId || q.id;
+        if (usedInForm.has(q.id) || groupsInForm.has(group)) continue;
+        chosen.push(q);
+        usedInForm.add(q.id);
+        groupsInForm.add(group);
+        sCounts.set(q.id, (sCounts.get(q.id) || 0) + 1);
+      }
+      return chosen;
+    };
+
+    const forms = Array.from({length: data.formCycleCount}, (_, formIndex) => {
+      const usedInForm   = new Set<string>();
+      const groupsInForm = new Set<string>();
+
+      const sections = data.sections.map((section: any) => {
+        const sCounts = sectionCounts.get(section.id)!;
+        const pool    = eligible(section);
+        const needed  = Number(section.questionsPresented);
+        const sorted  = sortForSection(pool, sCounts);
+        const chosen  = pickFrom(sorted, needed, usedInForm, groupsInForm, sCounts);
+
+        return {
+          sectionId:        section.id,
+          questionIds:      chosen.map((q: any) => q.id),
+          marksPerQuestion: section.marksPerQuestion,
+        };
+      });
+
+      return { number: formIndex + 1, status: 'draft', sections };
+    });
+
+    // Build summary stats
+    const totalEligible = new Set(data.sections.flatMap((s: any) => eligible(s).map((q: any) => q.id))).size;
+    const allUsed = new Set<string>();
+    sectionCounts.forEach(m => m.forEach((_, id) => allUsed.add(id)));
+    const practiceUsed = [...allUsed].filter(id => {
+      const q = data.questionBank.find((q: any) => q.id === id);
+      return q && isPractice(q);
+    }).length;
+    const unusedCount = totalEligible - allUsed.size;
+
+    // Per-section repeat info
+    const repeatLines: string[] = [];
+    sectionCounts.forEach((m, secId) => {
+      const sec = data.sections.find((s: any) => s.id === secId);
+      const maxUse = Math.max(0, ...[...m.values()]);
+      if (maxUse > 1) repeatLines.push(`${sec?.title || secId}: max ${maxUse} reuses`);
+    });
+
+    update('forms', forms);
+    setMessage([
+      `${forms.length} form(s) proposed.`,
+      `${allUsed.size} of ${totalEligible} unique eligible questions used`,
+      practiceUsed > 0 ? `(${practiceUsed} practice questions included).` : '.',
+      unusedCount > 0
+        ? `${unusedCount} question(s) not used — increase form count or broaden section criteria to cover the full bank.`
+        : 'All eligible questions covered.',
+      repeatLines.length ? `Repeats: ${repeatLines.join('; ')}.` : '',
+    ].filter(Boolean).join(' '));
   };
-  return <section className="assessment-editor"><header><div><small>TEACHER ASSESSMENT BUILDER</small><h2>{value?'Edit':'Add'} {kind}</h2><p>Configure the bank, structure and reusable forms.</p></div><button onClick={close}>× Close</button></header>
-    <div className="assessment-fields">{[['Test title','title','text'],['Total marks','totalMarks','number'],['Duration minutes','durationMinutes','number'],['Result delay hours','resultDelayHours','number'],['Retake after days','retakeAfterDays','number'],['Forms in cycle','formCycleCount','number'],['Green at %','greenPercent','number'],['Yellow at %','yellowPercent','number']].map(([label,key,type])=><label key={key}>{label}<input type={type} value={data[key]} min={key==='formCycleCount'?1:undefined} onChange={e=>update(key,type==='number'?Number(e.target.value):e.target.value)}/></label>)}</div>
-    <details open className="assessment-stage"><summary>1 · Question Bank <span>{data.questionBank.length} questions</span></summary>
-      <div className="bank-actions"><button onClick={()=>setEditing({...t1,id:`type1-${Date.now()}`})}>+ Add Type 1</button><button onClick={()=>setEditing({...t2,id:`type2-${Date.now()}`,steps:t2.steps.map(step=>({...step}))})}>+ Add Type 2</button></div>
-      {editing&&<QuestionEditor value={editing} media={media} isExisting={data.questionBank.some((q:any)=>q.id===editing.id)} existingIds={data.questionBank.filter((q:any)=>q.id!==editing.id).map((q:any)=>q.id)} cancel={()=>setEditing(undefined)} save={saveQuestion}/>} 
-      <div className="bank-import"><div><button onClick={()=>setJson(JSON.stringify({questions:[t1]},null,2))}>Type 1 JSON sample</button><button onClick={()=>setJson(JSON.stringify({questions:[t2]},null,2))}>Type 2 JSON sample</button><label className="file-button">Upload JSON<input type="file" accept="application/json,.json" onChange={e=>e.target.files?.[0]?.text().then(setJson)}/></label></div><textarea value={json} onChange={e=>setJson(e.target.value)} placeholder='Paste { "questions": [...] }'/><footer><span>{message}</span><button disabled={!json} onClick={loadJson}>Validate and load</button></footer></div>
-      <div className="question-bank-list">{data.questionBank.map((q:any)=><article key={q.id}><div><b>{q.type?.toUpperCase()}</b><span>{q.format||`${q.steps?.length||0} steps`} · {q.marks??q.totalMarks} marks · {q.topicId}</span></div><p>{q.question}</p><button onClick={()=>setEditing({...q,steps:q.steps?.map((step:any)=>({...step}))})}>Edit question</button><button onClick={()=>remove(q.id)}>Remove</button></article>)}</div>
+
+  const updateSectionDiff = (i:number, diff:Diff, checked:boolean) => {
+    update('sections', data.sections.map((x:any,n:number) => {
+      if(n!==i) return x;
+      const prev: string[] = x.difficulties || [...ALL_DIFF];
+      return {...x, difficulties: checked ? [...prev,diff] : prev.filter((d:string)=>d!==diff)};
+    }));
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  return <section className="assessment-editor">
+    <header>
+      <div>
+        <small>TEACHER ASSESSMENT BUILDER</small>
+        <h2>{value?'Edit':'Add'} {kind}</h2>
+        <p>Configure section structure and reusable attempt forms.</p>
+      </div>
+      <button onClick={close}>× Close</button>
+    </header>
+
+    {/* Settings */}
+    <div className="assessment-fields">
+      {([
+        ['Test title',              'title',            'text'  ],
+        ['Total marks',             'totalMarks',       'number'],
+        ['Duration minutes',        'durationMinutes',  'number'],
+        ['Result delay hours',      'resultDelayHours', 'number'],
+        ['Retake after days',       'retakeAfterDays',  'number'],
+        ['Forms in cycle (max 8)', 'formCycleCount',   'number'],
+        ['Green at %',              'greenPercent',     'number'],
+        ['Yellow at %',             'yellowPercent',    'number'],
+      ] as [string,string,string][]).map(([label,key,type])=>
+        <label key={key}>{label}
+          <input type={type} value={data[key]}
+            min={key==='formCycleCount'?1:undefined}
+            max={key==='formCycleCount'?8:undefined}
+            onChange={e=>{
+              let v:any = type==='number' ? Number(e.target.value) : e.target.value;
+              if(key==='formCycleCount') v = Math.min(8, Math.max(1, v));
+              update(key, v);
+            }}/>
+        </label>
+      )}
+      {/* Practice composition — full-width row below the grid */}
+      <label className="practice-pct-field">
+        Practice questions in each form
+        <div className="practice-pct-row">
+          <input type="number" min="0" max="100" value={data.practicePercent}
+            onChange={e=>update('practicePercent', Math.min(100,Math.max(0,Number(e.target.value))))}/>
+          <span className="practice-pct-hint">
+            % of each section drawn from questions tagged "chapter_practice".
+            0 = no restriction — all eligible questions fill forms equally.
+          </span>
+        </div>
+      </label>
+    </div>
+
+    {/* 1 · Section Structure */}
+    <details open className="assessment-stage">
+      <summary>
+        1 · Section Structure&nbsp;
+        <span className={marks===Number(data.totalMarks)?'marks-ok':'marks-warn'}>
+          {marks}/{data.totalMarks} marks
+        </span>
+      </summary>
+      <div className="section-builder">
+        <header>
+          <b>Paper sections</b>
+          <button onClick={()=>update('sections',[...data.sections,{
+            id:`section-${Date.now()}`,title:`Section ${data.sections.length+1}`,
+            questionType:'type1',format:'mixed',questionsPresented:1,questionsRequired:1,
+            marksPerQuestion:1,difficulties:[...ALL_DIFF]
+          }])}>+ Add section</button>
+        </header>
+        {data.sections.map((s:any,i:number)=>(
+          <div className="section-row" key={s.id}>
+            <label>Section title
+              <input value={s.title}
+                onChange={e=>update('sections',data.sections.map((x:any,n:number)=>n===i?{...x,title:e.target.value}:x))}/>
+            </label>
+
+            <label>Type
+              <select value={s.questionType}
+                onChange={e=>update('sections',data.sections.map((x:any,n:number)=>n===i?{...x,questionType:e.target.value}:x))}>
+                <option value="type1">Type 1</option>
+                <option value="type2">Type 2</option>
+              </select>
+            </label>
+
+            <div className="section-difficulties">
+              <span className="diff-label">Complexity</span>
+              {ALL_DIFF.map(d=>{
+                const diffs: string[] = s.difficulties || [...ALL_DIFF];
+                return <label key={d} className={`diff-chip${diffs.includes(d)?' on':''}`}>
+                  <input type="checkbox" checked={diffs.includes(d)}
+                    onChange={e=>updateSectionDiff(i,d,e.target.checked)}/>
+                  {d}
+                </label>;
+              })}
+            </div>
+
+            {([['Show','questionsPresented'],['Answer','questionsRequired'],['Marks each','marksPerQuestion']] as [string,string][]).map(([label,key])=>
+              <label key={key}>{label}
+                <input type="number" min="1" value={s[key]}
+                  onChange={e=>update('sections',data.sections.map((x:any,n:number)=>n===i?{...x,[key]:Number(e.target.value)}:x))}/>
+              </label>
+            )}
+
+            <button onClick={()=>update('sections',data.sections.filter((_:any,n:number)=>n!==i))}>×</button>
+          </div>
+        ))}
+      </div>
     </details>
-    <details open className="assessment-stage"><summary>2 · Section Structure <span className={marks===Number(data.totalMarks)?'marks-ok':'marks-warn'}>{marks}/{data.totalMarks} marks</span></summary><div className="section-builder"><header><b>Paper sections</b><button onClick={()=>update('sections',[...data.sections,{id:`section-${Date.now()}`,title:`Section ${data.sections.length+1}`,questionType:'type1',format:'mixed',questionsPresented:1,questionsRequired:1,marksPerQuestion:1}])}>+ Add section</button></header>{data.sections.map((s:any,i:number)=><div className="section-row" key={s.id}><input value={s.title} onChange={e=>update('sections',data.sections.map((x:any,n:number)=>n===i?{...x,title:e.target.value}:x))}/><select value={s.questionType} onChange={e=>update('sections',data.sections.map((x:any,n:number)=>n===i?{...x,questionType:e.target.value}:x))}><option value="type1">Type 1</option><option value="type2">Type 2</option></select>{[['Show','questionsPresented'],['Answer','questionsRequired'],['Marks each','marksPerQuestion']].map(([label,key])=><label key={key}>{label}<input type="number" min="1" value={s[key]} onChange={e=>update('sections',data.sections.map((x:any,n:number)=>n===i?{...x,[key]:Number(e.target.value)}:x))}/></label>)}<button onClick={()=>update('sections',data.sections.filter((_:any,n:number)=>n!==i))}>×</button></div>)}</div></details>
-    <details open className="assessment-stage"><summary>3 · Attempt Forms <span>{data.forms.filter(complete).length}/{data.formCycleCount} complete</span></summary><div className="form-proposal"><button onClick={proposeForms}>Propose all {data.formCycleCount} forms</button><span>Unused eligible questions are prioritised first; controlled repetition follows. Duplicate IDs/groups are blocked within each form.</span></div><div className="form-tabs">{data.forms.map((p:any)=><button className={p.number===active?'active':''} onClick={()=>setActive(p.number)} key={p.number}>Form {p.number}<small>{p.status==='approved'?'✓ Approved':complete(p)?'Ready':'Incomplete'}</small></button>)}</div>{paper&&<div className="paper-builder">{data.sections.map((s:any)=><section key={s.id}><header><div><b>{s.title}</b><span>Select {s.questionsPresented}; student answers {s.questionsRequired}</span></div><strong>{selected(s.id).length}/{s.questionsPresented}</strong></header><div className="question-picker">{eligible(s).map((q:any)=>{const checked=selected(s.id).includes(q.id);return <label className={checked?'selected':''} key={q.id}><input type="checkbox" checked={checked} disabled={!checked&&selected(s.id).length>=s.questionsPresented} onChange={()=>choose(s.id,checked?selected(s.id).filter((id:string)=>id!==q.id):[...selected(s.id),q.id])}/><span><b>{q.id}</b>{q.question}<small>{q.topicId} · {q.difficulty}</small></span></label>})}{!eligible(s).length&&<p>No matching {s.questionType.toUpperCase()} questions worth {s.marksPerQuestion} marks.</p>}</div></section>)}<footer><span>{complete(paper)?'All required questions selected.':'Complete each section before approval.'}</span><button disabled={!complete(paper)} onClick={()=>update('forms',data.forms.map((p:any,i:number)=>i===active-1?{...p,status:p.status==='approved'?'draft':'approved'}:p))}>{paper.status==='approved'?'Return to Draft':`Approve Form ${active}`}</button></footer></div>}</details>
-    <footer><p>Attempt {data.formCycleCount+1} repeats Form 1. Questions may shuffle only inside their section.</p><button className="accent" disabled={busy||marks!==Number(data.totalMarks)} onClick={()=>save(data)}>Save {kind}</button></footer>
+
+    {/* 2 · Attempt Forms */}
+    <details open className="assessment-stage">
+      <summary>2 · Attempt Forms <span>{data.forms.filter(complete).length}/{data.formCycleCount} complete</span></summary>
+
+      <div className="form-proposal">
+        <button onClick={proposeForms}>Propose all {data.formCycleCount} forms</button>
+        <button className="btn-danger-outline" disabled={busy} onClick={async ()=>{
+          if(!window.confirm(`Delete all ${data.formCycleCount} forms? Stats will update immediately.`)) return;
+          // Immediately persist deletion to DB so both apps stay in sync
+          if(chapterId) {
+            try { await platformApi.deleteCycleTestForms(chapterId); }
+            catch(e:any){ setMessage(`Delete failed: ${e.message}`); return; }
+          }
+          setData((c:any)=>({...c,forms:Array.from({length:c.formCycleCount},(_,i)=>
+            ({number:i+1,status:'draft',sections:c.sections.map((s:any)=>({sectionId:s.id,questionIds:[]}))})
+          )}));
+          setMessage('All forms deleted. Click "Propose" to regenerate or fill in manually.');
+          setActive(1);
+        }}>Delete all forms</button>
+        <span>
+          Questions drawn from the bank by type · complexity · format.
+          Unused questions fill first; hard questions repeat before medium/easy when cycling.
+        </span>
+      </div>
+      {message && <p className="proposal-message">{message}</p>}
+
+      <div className="form-tabs">
+        {data.forms.map((p:any)=>(
+          <button className={p.number===active?'active':''} onClick={()=>setActive(p.number)} key={p.number}>
+            Form {p.number}
+            <small>{p.status==='approved'?'✓ Approved':complete(p)?'Ready':'Incomplete'}</small>
+          </button>
+        ))}
+        <button className={`preview-toggle${preview?' active':''}`} onClick={()=>setPreview(v=>!v)}>
+          {preview?'← Edit':'Preview ▶'}
+        </button>
+      </div>
+
+      {paper && !preview && <div className="paper-builder">
+        {data.sections.map((s:any)=>{
+          const pool = eligible(s);
+          const diffs: string[] = s.difficulties || [...ALL_DIFF];
+          return <section key={s.id}>
+            <header>
+              <div>
+                <b>{s.title}</b>
+                <span>
+                  {s.questionType.toUpperCase()} · {diffs.join('/')} · {s.questionsPresented} questions · {s.marksPerQuestion} marks each
+                  {s.questionType==='type2'&&<em> (step marks = {s.marksPerQuestion}/steps)</em>}
+                </span>
+              </div>
+              <strong>{selected(s.id).length}/{s.questionsPresented}</strong>
+            </header>
+            <div className="question-picker">
+              {pool.map((q:any)=>{
+                const checked = selected(s.id).includes(q.id);
+                const stMark = s.questionType==='type2' && q.steps?.length
+                  ? stepMarks(q, s.marksPerQuestion) : null;
+                return <label className={checked?'selected':''} key={q.id}>
+                  <input type="checkbox" checked={checked}
+                    disabled={!checked && selected(s.id).length >= s.questionsPresented}
+                    onChange={()=>choose(s.id, checked
+                      ? selected(s.id).filter((id:string)=>id!==q.id)
+                      : [...selected(s.id), q.id]
+                    )}/>
+                  <span>
+                    <span className="q-badges">
+                      <b className={`diff-badge diff-${q.difficulty||'medium'}`}>{q.difficulty||'medium'}</b>
+                      {stMark && <b className="marks-badge">{stMark} × {q.steps.length} steps</b>}
+                    </span>
+                    {q.question}
+                    <small>{q.topicId} · {q.marks??q.totalMarks} marks in bank</small>
+                  </span>
+                </label>;
+              })}
+              {!pool.length && <p className="no-match">
+                No {s.questionType.toUpperCase()} questions matching {diffs.join('/')}
+                {s.questionType==='type1'&&` · ${s.marksPerQuestion} marks`} in the question bank.
+              </p>}
+            </div>
+          </section>;
+        })}
+        <footer>
+          <span>{complete(paper)?'All required questions selected.':'Complete each section before approval.'}</span>
+          <button disabled={!complete(paper)} onClick={()=>update('forms',data.forms.map((p:any,i:number)=>
+            i===active-1?{...p,status:p.status==='approved'?'draft':'approved'}:p
+          ))}>
+            {paper.status==='approved'?'Return to Draft':`Approve Form ${active}`}
+          </button>
+        </footer>
+      </div>}
+
+      {paper && preview && <FormPreview
+        form={{...paper, resultDelayHours: data.resultDelayHours}}
+        sections={data.sections}
+        bank={data.questionBank}
+        testTitle={data.title}
+        durationMinutes={data.durationMinutes}
+        totalMarks={data.totalMarks}
+      />}
+    </details>
+
+    <footer>
+      <p>Attempt {data.formCycleCount+1} repeats Form 1. Step marks for Type 2 = section marks ÷ number of steps.</p>
+      {saveErr && <p className="proposal-message" style={{color:'#dc2626'}}>{saveErr}</p>}
+      <button className="accent" disabled={busy||marks!==Number(data.totalMarks)} onClick={async()=>{
+        setSaveErr('');
+        try {
+          await save(data);
+          // Refresh question bank so usage tags reflect the saved state
+          if(chapterId) {
+            try {
+              const fresh = await platformApi.chapterQuestions(chapterId);
+              update('questionBank', fresh);
+            } catch {}
+          }
+        } catch(e:any) {
+          setSaveErr(e.message || 'Save failed');
+        }
+      }}>
+        Save {kind}
+      </button>
+    </footer>
   </section>;
 }
 
-function QuestionEditor({value,media,isExisting,existingIds,cancel,save}:{value:any;media:any[];isExisting:boolean;existingIds:string[];cancel:()=>void;save:(question:any)=>void}){
-  const [question,setQuestion]=useState<any>(value); const change=(key:string,next:any)=>setQuestion((current:any)=>({...current,[key]:next}));
-  const type=question.type==='type2'?'type2':'type1'; const total=type==='type2'?(question.steps||[]).reduce((sum:number,step:any)=>sum+Number(step.marks||0),0):Number(question.marks||0);
-  const errors:string[]=[];
-  if(!question.id?.trim())errors.push('Question ID is required.'); else if(existingIds.includes(question.id))errors.push('Question ID must be unique.');
-  if(!question.topicId?.trim())errors.push('Topic ID is required.'); if(!question.question?.trim())errors.push('Question text is required.'); if(total<=0)errors.push('Marks must be greater than zero.');
-  if(type==='type1'){if(!question.correctAnswer?.trim())errors.push('Correct answer is required.');if(question.options?.length&&!question.options.includes(question.correctAnswer))errors.push('Correct answer must exactly match an option.');if(!question.explanation?.trim())errors.push('Explanation is required.');}
-  else {(question.steps||[]).forEach((step:any,index:number)=>{if(!step.prompt?.trim())errors.push(`Step ${index+1}: prompt is required.`);if(step.options?.length<2||step.options?.length>3)errors.push(`Step ${index+1}: provide 2 or 3 choices.`);if(!step.options?.includes(step.answer))errors.push(`Step ${index+1}: answer must match a choice.`);if(Number(step.marks)<=0)errors.push(`Step ${index+1}: marks must be positive.`)});if(!question.steps?.length)errors.push('Add at least one subquestion.');if(!question.finalAnswer?.trim())errors.push('Final answer is required.');}
-  const updateStep=(index:number,key:string,next:any)=>change('steps',question.steps.map((step:any,i:number)=>i===index?{...step,[key]:next}:step));
-  return <section className="question-editor"><header><div><small>VISUAL QUESTION EDITOR</small><h3>{value.question==='Enter the question'||value.question?.startsWith('Enter the problem')?'New':'Edit'} {type==='type1'?'Type 1':'Type 2'} question</h3></div><button onClick={cancel}>× Close</button></header>
-    <div className="question-fields"><label>Question ID<input disabled={isExisting} title={isExisting?'Stable IDs cannot change after creation.':''} value={question.id} onChange={e=>change('id',e.target.value)}/></label><label>Question type<select value={type} onChange={e=>{const next=e.target.value;setQuestion(next==='type2'?{...t2,id:question.id,topicId:question.topicId,question:question.question}:{...t1,id:question.id,topicId:question.topicId,question:question.question})}}><option value="type1">Type 1</option><option value="type2">Type 2</option></select></label><label>Topic ID<input value={question.topicId} onChange={e=>change('topicId',e.target.value)}/></label><label>Difficulty<select value={question.difficulty||'medium'} onChange={e=>change('difficulty',e.target.value)}><option>easy</option><option>medium</option><option>hard</option></select></label></div>
-    <label className="wide-field">Question<RichTextEditor value={question.question} onChange={value=>change('question',value)} placeholder="Type the question…"/></label>
-    {type==='type1'?<><div className="question-fields"><label>Format<select value={question.format||'mcq'} onChange={e=>change('format',e.target.value)}><option value="mcq">MCQ</option><option value="true_false">True/False</option><option value="fill_blank">Fill blank</option><option value="one_line">One line</option><option value="match">Match</option><option value="sequence">Sequence</option></select></label><label>Marks<input type="number" min="0.5" step="0.5" value={question.marks} onChange={e=>change('marks',Number(e.target.value))}/></label></div><MediaChooser title="Question images" media={media} value={question.mediaRefs||[]} change={value=>change('mediaRefs',value)}/><label className="wide-field">Options — one per line<textarea value={(question.options||[]).join('\n')} onChange={e=>change('options',e.target.value.split('\n').map(x=>x.trim()).filter(Boolean))}/></label><label className="wide-field">Correct answer<input value={question.correctAnswer||''} onChange={e=>change('correctAnswer',e.target.value)}/></label><label className="wide-field">Explanation<RichTextEditor value={question.explanation||''} onChange={value=>change('explanation',value)} placeholder="Explain the answer…"/></label><MediaChooser title="Explanation images" media={media} value={question.explanationMediaRefs||[]} change={value=>change('explanationMediaRefs',value)}/></>:<><div className="calculated-marks">Calculated total: <strong>{total} marks</strong> <span>Sum of all subquestion marks</span></div><MediaChooser title="Question images" media={media} value={question.mediaRefs||[]} change={value=>change('mediaRefs',value)}/>{question.steps.map((step:any,index:number)=><section className="step-editor" key={step.id||index}><header><b>Subquestion {index+1}</b><button onClick={()=>change('steps',question.steps.filter((_:any,i:number)=>i!==index))}>Remove</button></header><label>Prompt<RichTextEditor value={step.prompt||''} onChange={value=>updateStep(index,'prompt',value)} placeholder="Type the subquestion…"/></label><div className="question-fields"><label>Marks<input type="number" min="0.5" step="0.5" value={step.marks} onChange={e=>updateStep(index,'marks',Number(e.target.value))}/></label><label>Correct answer<input value={step.answer||''} onChange={e=>updateStep(index,'answer',e.target.value)}/></label><label className="check-field"><input type="checkbox" checked={Boolean(step.isCritical)} onChange={e=>updateStep(index,'isCritical',e.target.checked)}/> Critical step</label><label>Negative marks<input type="number" min="0" step="0.5" value={step.negativeMarks||0} onChange={e=>updateStep(index,'negativeMarks',Number(e.target.value))}/></label></div><label>Choices — 2 or 3, one per line<textarea value={(step.options||[]).join('\n')} onChange={e=>updateStep(index,'options',e.target.value.split('\n').map(x=>x.trim()).filter(Boolean))}/></label><MediaChooser title="Subquestion images" media={media} value={step.mediaRefs||[]} change={value=>updateStep(index,'mediaRefs',value)}/><label>Step explanation<RichTextEditor value={step.explanation||''} onChange={value=>updateStep(index,'explanation',value)} placeholder="Explain this step…"/></label><MediaChooser title="Answer images" media={media} value={step.answerMediaRefs||[]} change={value=>updateStep(index,'answerMediaRefs',value)}/><MediaChooser title="Explanation images" media={media} value={step.explanationMediaRefs||[]} change={value=>updateStep(index,'explanationMediaRefs',value)}/></section>)}<button onClick={()=>change('steps',[...question.steps,{id:`${question.id}-step-${question.steps.length+1}`,prompt:'',options:['',''],answer:'',marks:1,isCritical:false,negativeMarks:0,explanation:'',mediaRefs:[],answerMediaRefs:[],explanationMediaRefs:[]}])}>+ Add subquestion</button><label className="wide-field">Consolidated final answer<RichTextEditor value={question.finalAnswer||''} onChange={value=>change('finalAnswer',value)} placeholder="Type the complete answer…"/></label></>}
-    <footer><div>{errors.slice(0,3).map(error=><span key={error}>{error}</span>)}</div><button className="accent" disabled={errors.length>0} onClick={()=>save(question)}>Save question</button></footer>
-  </section>;
+function MediaChooser({title,media,value,change}:{title:string;media:any[];value:string[];change:(value:string[])=>void}){
+  return <details className="assessment-media-chooser">
+    <summary>{title} <span>{value.length} selected</span></summary>
+    {media.length
+      ?<div>{media.map(item=><label key={item.fileName}><input type="checkbox" checked={value.includes(item.fileName)} onChange={()=>change(value.includes(item.fileName)?value.filter(n=>n!==item.fileName):[...value,item.fileName])}/><img src={`http://localhost:3001${item.url}`} alt={item.altText}/><span>{item.fileName}</span></label>)}</div>
+      :<p>No images in this Chapter library.</p>}
+  </details>;
 }
-
-function MediaChooser({title,media,value,change}:{title:string;media:any[];value:string[];change:(value:string[])=>void}){return <details className="assessment-media-chooser"><summary>{title} <span>{value.length} selected</span></summary>{media.length?<div>{media.map(item=><label key={item.fileName}><input type="checkbox" checked={value.includes(item.fileName)} onChange={()=>change(value.includes(item.fileName)?value.filter(name=>name!==item.fileName):[...value,item.fileName])}/><img src={`http://localhost:3001${item.url}`} alt={item.altText}/><span>{item.fileName}</span></label>)}</div>:<p>No images in this Chapter library.</p>}</details>}

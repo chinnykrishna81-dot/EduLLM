@@ -1,82 +1,397 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { Concept, CoursePackage, MediaAsset } from '@edullm/content-schema';
-import { api, API, type CourseRecord } from './api';
-import { sampleCourse } from './sample';
+import { useState, useEffect } from 'react';
+import type { PackageSummary, Chapter, Section, McqBank, McqQuestion, Type2Bank, Type2Question } from './types';
+import { api } from './contentApi';
+import './teacher.css';
 
-type View = 'courses'|'import'|'studio'|'media'|'preview'|'json';
-const clone = <T,>(value:T):T => structuredClone(value);
+type Tab = 'concepts' | 'questions';
 
-function MediaStrip({refs,media}:{refs:string[];media:MediaAsset[]}) {
-  const matches = refs.map(ref => media.find(item => item.id===ref || item.fileName===ref)).filter(Boolean) as MediaAsset[];
-  if (!refs.length) return null;
-  return <div className="media-strip">{refs.map((ref,index) => {const item=matches.find(x=>x.id===ref||x.fileName===ref);return item?<figure key={ref}><img src={`${API}${item.url}`} alt={item.altText||item.title}/><figcaption>{item.caption||item.title}<small>{item.fileName}</small></figcaption></figure>:<div className="missing-media" key={`${ref}-${index}`}>Missing image<br/><b>{ref}</b></div>})}</div>;
+function SectionCard({ section, pkgId, mcqs }: { section: Section; pkgId: string; mcqs: McqQuestion[] }) {
+  const [showAnswers, setShowAnswers] = useState<Record<string, boolean>>({});
+  const topicMcqs = mcqs.slice(0, 10);
+
+  const toggle = (id: string) => setShowAnswers(s => ({ ...s, [id]: !s[id] }));
+
+  return (
+    <div className="section-card">
+      <div className="section-header" style={{ background: `linear-gradient(135deg, ${section.colors[0]}, ${section.colors[1]})` }}>
+        <span className="section-id">{section.id}</span>
+        <h2>{section.title}</h2>
+      </div>
+
+      <div className="section-body">
+        <div className="concept-block">
+          <h4>Definition</h4>
+          <p>{section.definition}</p>
+        </div>
+
+        {section.key_points.length > 0 && (
+          <div className="concept-block">
+            <h4>Key Points</h4>
+            <ul>{section.key_points.map((p, i) => <li key={i}>{p}</li>)}</ul>
+          </div>
+        )}
+
+        {section.equations.length > 0 && (
+          <div className="concept-block equations">
+            <h4>Equations</h4>
+            {section.equations.map((eq, i) => <div key={i} className="equation">{eq}</div>)}
+          </div>
+        )}
+
+        {section.worked_example && (
+          <div className="concept-block worked-example">
+            <h4>Worked Example</h4>
+            <p>{section.worked_example}</p>
+          </div>
+        )}
+
+        {section.visual_flow && (
+          <div className="concept-block visual-flow">
+            <h4>Visual Flow</h4>
+            <div className="flow-box">{section.visual_flow}</div>
+          </div>
+        )}
+
+        {section.subtopics.length > 0 && (
+          <div className="concept-block">
+            <h4>Subtopics</h4>
+            <div className="subtopics">
+              {section.subtopics.map((st, i) => (
+                <div key={i} className="subtopic">
+                  <strong>{st.heading}</strong>
+                  <p>{st.explanation}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {section.images.length > 0 && (
+          <div className="concept-block">
+            <h4>Images</h4>
+            <div className="image-row">
+              {section.images.map((img, i) => (
+                <figure key={i}>
+                  <img
+                    src={api.chapterImageUrl(pkgId, img.src.replace('images/', ''))}
+                    alt={img.alt}
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                  <figcaption>{img.caption}</figcaption>
+                </figure>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {topicMcqs.length > 0 && (
+          <div className="tyk-block">
+            <div className="tyk-header">
+              <span>Test Your Knowledge</span>
+              <span className="tyk-count">{topicMcqs.length} MCQs</span>
+            </div>
+            <div className="tyk-questions">
+              {topicMcqs.map((q, i) => (
+                <div key={q.question_id} className="tyk-q">
+                  <p className="q-text"><strong>Q{i + 1}.</strong> {q.question}</p>
+                  <div className="options">
+                    {q.options.map(opt => (
+                      <span key={opt.id} className={`option ${showAnswers[q.question_id] && opt.id === q.correct_option ? 'correct' : ''}`}>
+                        <strong>{opt.id}.</strong> {opt.text}
+                      </span>
+                    ))}
+                  </div>
+                  {showAnswers[q.question_id] && (
+                    <div className="answer-reveal">
+                      <strong>Answer: {q.correct_option}</strong> — {q.short_explanation}
+                    </div>
+                  )}
+                  <button className="show-btn" onClick={() => toggle(q.question_id)}>
+                    {showAnswers[q.question_id] ? 'Hide Answer' : 'Show Answer'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
-function MediaRefs({refs,media,onChange}:{refs:string[];media:MediaAsset[];onChange:(refs:string[])=>void}) {
-  const [choice,setChoice]=useState('');
-  return <div className="media-ref-editor"><label>Images shown beside this content</label><div className="chips">{refs.map(ref=><button className="chip" key={ref} onClick={()=>onChange(refs.filter(x=>x!==ref))}>{ref} ×</button>)}</div><div className="attach-row"><select value={choice} onChange={e=>setChoice(e.target.value)}><option value="">Select an uploaded image…</option>{media.filter(x=>!refs.includes(x.fileName)).map(x=><option key={x.id} value={x.fileName}>{x.fileName}</option>)}</select><button disabled={!choice} onClick={()=>{onChange([...refs,choice]);setChoice('')}}>Attach</button></div><MediaStrip refs={refs} media={media}/></div>;
+function McqView({ pkgId, bank }: { pkgId: string; bank: McqBank }) {
+  const [filterTopic, setFilterTopic] = useState('All');
+  const [showAnswers, setShowAnswers] = useState<Record<string, boolean>>({});
+  const topics = ['All', ...Array.from(new Set(bank.questions.map(q => q.topic))).sort()];
+  const filtered = filterTopic === 'All' ? bank.questions : bank.questions.filter(q => q.topic === filterTopic);
+  const toggle = (id: string) => setShowAnswers(s => ({ ...s, [id]: !s[id] }));
+
+  return (
+    <div className="qbank-view">
+      <div className="qbank-toolbar">
+        <label>Filter by Topic:
+          <select value={filterTopic} onChange={e => setFilterTopic(e.target.value)}>
+            {topics.map(t => <option key={t}>{t}</option>)}
+          </select>
+        </label>
+        <span className="count-badge">{filtered.length} questions</span>
+      </div>
+      <div className="q-list">
+        {filtered.map((q, i) => (
+          <div key={q.question_id} className="q-card">
+            <div className="q-meta">
+              <span className="q-id">{q.question_id}</span>
+              <span className={`difficulty diff-${q.difficulty.toLowerCase()}`}>{q.difficulty}</span>
+              <span className="q-topic">{q.topic}</span>
+              {q.subtopic !== q.topic && <span className="q-subtopic">{q.subtopic}</span>}
+              <span className="q-marks">{q.marks}M</span>
+            </div>
+            <p className="q-text"><strong>Q{i + 1}.</strong> {q.question}</p>
+            <div className="options">
+              {q.options.map(opt => (
+                <span key={opt.id} className={`option ${showAnswers[q.question_id] && opt.id === q.correct_option ? 'correct' : ''}`}>
+                  <strong>{opt.id}.</strong> {opt.text}
+                </span>
+              ))}
+            </div>
+            {showAnswers[q.question_id] && (
+              <div className="answer-reveal">
+                <strong>Answer: {q.correct_option}</strong> — {q.short_explanation}
+              </div>
+            )}
+            <button className="show-btn" onClick={() => toggle(q.question_id)}>
+              {showAnswers[q.question_id] ? 'Hide Answer' : 'Show Answer'}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
-function Field({label,value,onChange,multiline=true}:{label:string;value:string;onChange:(value:string)=>void;multiline?:boolean}) {
-  return <label className="field"><span>{label}</span>{multiline?<textarea value={value||''} onChange={e=>onChange(e.target.value)}/>:<input value={value||''} onChange={e=>onChange(e.target.value)}/>}</label>;
-}
+function Type2View({ pkgId, bank }: { pkgId: string; bank: Type2Bank }) {
+  const [filterTopic, setFilterTopic] = useState('All');
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const topics = ['All', ...Array.from(new Set(bank.questions.map(q => q.topic))).sort()];
+  const filtered = filterTopic === 'All' ? bank.questions : bank.questions.filter(q => q.topic === filterTopic);
+  const toggle = (id: string) => setExpanded(s => ({ ...s, [id]: !s[id] }));
 
-function ReviewButton({status,onChange}:{status:string;onChange:(status:'draft'|'reviewed'|'changes_requested')=>void}) {
-  return <select className={`review-select ${status}`} value={status} onChange={e=>onChange(e.target.value as any)}><option value="draft">Draft</option><option value="reviewed">✓ Reviewed</option><option value="changes_requested">Changes requested</option></select>;
-}
-
-function AssetBox({title,status,onStatus,children}:{title:string;status:string;onStatus:(s:any)=>void;children:any}) {
-  return <article className="asset-box"><header><h4>{title}</h4><ReviewButton status={status} onChange={onStatus}/></header>{children}</article>;
-}
-
-function ConceptEditor({concept,media,onChange}:{concept:Concept;media:MediaAsset[];onChange:(value:Concept)=>void}) {
-  const update=(key:string,value:any)=>onChange({...concept,[key]:value});
-  const updateExp=(key:string,value:any)=>update('explanation',{...concept.explanation,[key]:value});
-  const updateArray=(key:keyof Concept,index:number,patch:any)=>{const items=[...(concept[key] as any[])];items[index]={...items[index],...patch};update(key,items)};
-  const [tab,setTab]=useState<'explanation'|'cards'|'examples'|'questions'>('explanation');
-  return <section className="concept-editor">
-    <div className="concept-heading"><div><p className="eyebrow">CONCEPT</p><Field label="Concept title" value={concept.title} onChange={v=>update('title',v)} multiline={false}/></div><ReviewButton status={concept.reviewStatus} onChange={v=>update('reviewStatus',v)}/></div>
-    <Field label="Concept description" value={concept.description} onChange={v=>update('description',v)}/>
-    <MediaRefs refs={concept.mediaRefs} media={media} onChange={v=>update('mediaRefs',v)}/>
-    <div className="tabs">{(['explanation','cards','examples','questions'] as const).map(x=><button className={tab===x?'active':''} onClick={()=>setTab(x)} key={x}>{x}</button>)}</div>
-    {tab==='explanation'&&<AssetBox title="Layered explanation" status={concept.explanation.reviewStatus} onStatus={v=>updateExp('reviewStatus',v)}>
-      <Field label="Summary" value={concept.explanation.summary} onChange={v=>updateExp('summary',v)}/><Field label="30-second understanding" value={concept.explanation.quickUnderstanding} onChange={v=>updateExp('quickUnderstanding',v)}/><Field label="Beginner explanation" value={concept.explanation.beginner} onChange={v=>updateExp('beginner',v)}/><Field label="Detailed explanation" value={concept.explanation.detailed} onChange={v=>updateExp('detailed',v)}/><Field label="Deep understanding" value={concept.explanation.deepDive} onChange={v=>updateExp('deepDive',v)}/><Field label="Exam perspective" value={concept.explanation.examPerspective} onChange={v=>updateExp('examPerspective',v)}/>
-      <Field label="Real-world applications (one per line)" value={concept.explanation.realWorldApplications.join('\n')} onChange={v=>updateExp('realWorldApplications',v.split('\n').filter(Boolean))}/><Field label="Memory aids (one per line)" value={concept.explanation.memoryAids.join('\n')} onChange={v=>updateExp('memoryAids',v.split('\n').filter(Boolean))}/>
-      <MediaRefs refs={concept.explanation.mediaRefs} media={media} onChange={v=>updateExp('mediaRefs',v)}/>
-    </AssetBox>}
-    {tab==='cards'&&<><h3>Flash Cards <span>{concept.flashCards.length}</span></h3>{concept.flashCards.map((card,i)=><AssetBox key={card.id} title={card.title} status={card.reviewStatus} onStatus={v=>updateArray('flashCards',i,{reviewStatus:v})}><Field label="Title" value={card.title} onChange={v=>updateArray('flashCards',i,{title:v})} multiline={false}/><Field label="Front" value={card.front} onChange={v=>updateArray('flashCards',i,{front:v})}/><Field label="Back" value={card.back} onChange={v=>updateArray('flashCards',i,{back:v})}/><Field label="Hint" value={card.hint} onChange={v=>updateArray('flashCards',i,{hint:v})}/><MediaRefs refs={card.mediaRefs} media={media} onChange={v=>updateArray('flashCards',i,{mediaRefs:v})}/></AssetBox>)}
-      <h3>Learning Cards <span>{concept.learningCards.length}</span></h3>{concept.learningCards.map((card,i)=><AssetBox key={card.id} title={card.title} status={card.reviewStatus} onStatus={v=>updateArray('learningCards',i,{reviewStatus:v})}><Field label="Title" value={card.title} onChange={v=>updateArray('learningCards',i,{title:v})} multiline={false}/><Field label="Content" value={card.content} onChange={v=>updateArray('learningCards',i,{content:v})}/><Field label="Key points (one per line)" value={card.keyPoints.join('\n')} onChange={v=>updateArray('learningCards',i,{keyPoints:v.split('\n').filter(Boolean)})}/><Field label="Quick check" value={card.quickCheck} onChange={v=>updateArray('learningCards',i,{quickCheck:v})}/><MediaRefs refs={card.mediaRefs} media={media} onChange={v=>updateArray('learningCards',i,{mediaRefs:v})}/></AssetBox>)}</>}
-    {tab==='examples'&&<>{concept.workedExamples.map((item,i)=><AssetBox key={item.id} title={item.title} status={item.reviewStatus} onStatus={v=>updateArray('workedExamples',i,{reviewStatus:v})}><Field label="Title" value={item.title} onChange={v=>updateArray('workedExamples',i,{title:v})} multiline={false}/><Field label="Problem" value={item.problem} onChange={v=>updateArray('workedExamples',i,{problem:v})}/><Field label="Steps (one per line)" value={item.steps.join('\n')} onChange={v=>updateArray('workedExamples',i,{steps:v.split('\n').filter(Boolean)})}/><Field label="Answer" value={item.answer} onChange={v=>updateArray('workedExamples',i,{answer:v})}/><Field label="Explanation" value={item.explanation} onChange={v=>updateArray('workedExamples',i,{explanation:v})}/><MediaRefs refs={item.mediaRefs} media={media} onChange={v=>updateArray('workedExamples',i,{mediaRefs:v})}/></AssetBox>)}</>}
-    {tab==='questions'&&<><h3>Type 1 Questions <span>{concept.type1Questions.length}</span></h3>{concept.type1Questions.map((q,i)=><AssetBox key={q.id} title={q.title} status={q.reviewStatus} onStatus={v=>updateArray('type1Questions',i,{reviewStatus:v})}><Field label="Question" value={q.question} onChange={v=>updateArray('type1Questions',i,{question:v})}/><Field label="Options (one per line)" value={q.options.join('\n')} onChange={v=>updateArray('type1Questions',i,{options:v.split('\n').filter(Boolean)})}/><Field label="Correct answer" value={q.correctAnswer} onChange={v=>updateArray('type1Questions',i,{correctAnswer:v})}/><Field label="Explanation" value={q.explanation} onChange={v=>updateArray('type1Questions',i,{explanation:v})}/><MediaRefs refs={q.mediaRefs} media={media} onChange={v=>updateArray('type1Questions',i,{mediaRefs:v})}/></AssetBox>)}
-      <h3>Type 2 Guided Questions <span>{concept.type2Questions.length}</span></h3>{concept.type2Questions.map((q,i)=><AssetBox key={q.id} title={q.title} status={q.reviewStatus} onStatus={v=>updateArray('type2Questions',i,{reviewStatus:v})}><Field label="Parent question" value={q.question} onChange={v=>updateArray('type2Questions',i,{question:v})}/><Field label="Final answer" value={q.finalAnswer} onChange={v=>updateArray('type2Questions',i,{finalAnswer:v})}/><MediaRefs refs={q.mediaRefs} media={media} onChange={v=>updateArray('type2Questions',i,{mediaRefs:v})}/>{q.steps.map((step,si)=><div className="step-box" key={step.id}><b>Step {si+1} · {step.marks} mark(s)</b><Field label="Prompt" value={step.prompt} onChange={v=>{const steps=[...q.steps];steps[si]={...step,prompt:v};updateArray('type2Questions',i,{steps})}}/><Field label="Answer" value={step.answer} onChange={v=>{const steps=[...q.steps];steps[si]={...step,answer:v};updateArray('type2Questions',i,{steps})}}/><Field label="Feedback / explanation" value={step.explanation} onChange={v=>{const steps=[...q.steps];steps[si]={...step,explanation:v};updateArray('type2Questions',i,{steps})}}/><MediaRefs refs={step.mediaRefs} media={media} onChange={v=>{const steps=[...q.steps];steps[si]={...step,mediaRefs:v};updateArray('type2Questions',i,{steps})}}/></div>)}</AssetBox>)}</>}
-  </section>;
-}
-
-function Preview({course,media}:{course:CoursePackage;media:MediaAsset[]}) {
-  return <div className="preview-page"><div className="preview-hero"><p className="eyebrow">STUDENT PREVIEW</p><h1>{course.course.title}</h1><p>{course.course.description}</p><MediaStrip refs={course.course.thumbnailRef?[course.course.thumbnailRef]:[]} media={media}/></div>{course.chapters.map(ch=><section key={ch.id}><h2>{ch.title}</h2><p>{ch.description}</p><MediaStrip refs={ch.mediaRefs} media={media}/>{ch.topics.map(t=><div key={t.id}><h3>{t.title}</h3>{t.concepts.map(c=><article className="lesson" key={c.id}><h3>{c.title}</h3><p className="lead">{c.explanation.summary}</p><MediaStrip refs={c.mediaRefs} media={media}/><h4>Quick understanding</h4><p>{c.explanation.quickUnderstanding}</p><h4>Learn it</h4><p>{c.explanation.beginner}</p><MediaStrip refs={c.explanation.mediaRefs} media={media}/><details><summary>Detailed explanation</summary><p>{c.explanation.detailed}</p><p>{c.explanation.deepDive}</p></details>{c.learningCards.map(x=><div className="student-card" key={x.id}><b>{x.title}</b><p>{x.content}</p><MediaStrip refs={x.mediaRefs} media={media}/></div>)}{c.workedExamples.map(x=><div className="worked" key={x.id}><b>Worked example · {x.title}</b><p>{x.problem}</p><ol>{x.steps.map(s=><li key={s}>{s}</li>)}</ol><strong>{x.answer}</strong><MediaStrip refs={x.mediaRefs} media={media}/></div>)}{c.type1Questions.map(x=><div className="question" key={x.id}><b>Quick practice</b><p>{x.question}</p><MediaStrip refs={x.mediaRefs} media={media}/><ul>{x.options.map(o=><li key={o}>{o}</li>)}</ul><details><summary>Show answer</summary><strong>{x.correctAnswer}</strong><p>{x.explanation}</p></details></div>)}{c.type2Questions.map(x=><div className="question guided" key={x.id}><b>Guided question · {x.totalMarks} marks</b><p>{x.question}</p><MediaStrip refs={x.mediaRefs} media={media}/>{x.steps.map((s,i)=><details key={s.id}><summary>Step {i+1}: {s.prompt}</summary><MediaStrip refs={s.mediaRefs} media={media}/><strong>{s.answer}</strong><p>{s.explanation}</p></details>)}</div>)}</article>)}</div>)}</section>)}</div>;
+  return (
+    <div className="qbank-view">
+      <div className="qbank-toolbar">
+        <label>Filter by Topic:
+          <select value={filterTopic} onChange={e => setFilterTopic(e.target.value)}>
+            {topics.map(t => <option key={t}>{t}</option>)}
+          </select>
+        </label>
+        <span className="count-badge">{filtered.length} questions</span>
+      </div>
+      <div className="q-list">
+        {filtered.map((q, i) => (
+          <div key={q.id} className="q-card type2-card">
+            <div className="q-meta">
+              <span className="q-id">{q.id}</span>
+              <span className="type2-badge">Type 2</span>
+              <span className={`difficulty diff-${q.complexity.toLowerCase()}`}>{q.complexity}</span>
+              <span className="q-topic">{q.topic}</span>
+              {q.subtopic !== q.topic && <span className="q-subtopic">{q.subtopic}</span>}
+              <span className="q-marks">{q.marks}M</span>
+            </div>
+            <p className="q-text"><strong>Q{i + 1}.</strong> {q.main_question}</p>
+            {q.explanation_image_ref && (
+              <img
+                src={api.type2ImageUrl(pkgId, q.explanation_image_ref.replace('images/', ''))}
+                alt={q.explanation_image_alt || `Illustration for ${q.id}`}
+                className="q-illustration"
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            )}
+            <button className="show-btn" onClick={() => toggle(q.id)}>
+              {expanded[q.id] ? 'Hide Sub-questions' : `Show ${q.subquestions.length} Sub-questions`}
+            </button>
+            {expanded[q.id] && (
+              <div className="subquestions">
+                {q.subquestions.map((sq, si) => (
+                  <div key={sq.id} className="subq">
+                    <p><strong>Step {si + 1} ({sq.marks}M):</strong> {sq.question}</p>
+                    <div className="options">
+                      {sq.options.map(opt => (
+                        <span key={opt.id} className={`option ${opt.is_correct ? 'correct' : ''}`}>
+                          <strong>{opt.id}.</strong> {opt.text} {opt.is_correct && '✓'}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="answer-reveal"><strong>Answer:</strong> {sq.answer} — {sq.feedback}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function App() {
-  const [courses,setCourses]=useState<CourseRecord[]>([]),[active,setActive]=useState<CourseRecord|null>(null),[content,setContent]=useState<CoursePackage|null>(null),[media,setMedia]=useState<MediaAsset[]>([]),[view,setView]=useState<View>('courses'),[selectedConcept,setSelectedConcept]=useState(''),[json,setJson]=useState(JSON.stringify(sampleCourse,null,2)),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
-  const loadCourses=async()=>setCourses(await api.listCourses());
-  useEffect(()=>{loadCourses().catch(e=>setNotice(e.message))},[]);
-  const open=async(record:CourseRecord,next:View='studio')=>{const full=await api.getCourse(record.id);setActive(full);setContent(clone(full.content));setMedia(await api.listMedia(record.id));setSelectedConcept(full.content.chapters[0]?.topics[0]?.concepts[0]?.id||'');setView(next)};
-  const concepts=useMemo(()=>content?.chapters.flatMap((ch,ci)=>ch.topics.flatMap((t,ti)=>t.concepts.map((c,ki)=>({concept:c,ci,ti,ki,chapter:ch.title,topic:t.title}))))||[],[content]);
-  const selected=concepts.find(x=>x.concept.id===selectedConcept)||concepts[0];
-  const updateConcept=(value:Concept)=>{if(!content||!selected)return;const next=clone(content);next.chapters[selected.ci].topics[selected.ti].concepts[selected.ki]=value;setContent(next)};
-  const act=async(fn:()=>Promise<any>,message:string)=>{setBusy(true);setNotice('');try{const result=await fn();if(result?.content){setActive(result);setContent(clone(result.content))}await loadCourses();setNotice(message)}catch(e:any){setNotice(e.message)}finally{setBusy(false)}};
-  const importJson=()=>act(async()=>{const result=await api.importCourse(JSON.parse(json));await open(result,'studio');return result},'Course imported successfully');
-  const save=()=>active&&content&&act(()=>api.saveCourse(active.id,content),'Draft saved');
-  return <div className="app-shell">
-    <aside><div className="brand"><span>EDU</span><b>LLM</b><small>Content Studio</small></div><nav><button className={view==='courses'?'active':''} onClick={()=>setView('courses')}>▦ Courses</button><button className={view==='import'?'active':''} onClick={()=>setView('import')}>⇧ Import content</button>{active&&<><button className={view==='studio'?'active':''} onClick={()=>setView('studio')}>✎ Content review</button><button className={view==='media'?'active':''} onClick={()=>setView('media')}>▧ Media library</button><button className={view==='preview'?'active':''} onClick={()=>setView('preview')}>◉ Student preview</button><button className={view==='json'?'active':''} onClick={()=>{setJson(JSON.stringify(content,null,2));setView('json')}}>{'{ }'} Raw JSON</button></>}</nav><div className="role"><span>ADMIN</span><b>Local content owner</b><small>No cloud · No local AI</small></div></aside>
-    <main><header className="topbar"><div><p className="eyebrow">CONTENT MANAGEMENT</p><h2>{active?.title||'Course workspace'}</h2></div>{active&&<div className="actions"><span className={`status ${active.status}`}>{active.status}</span><button disabled={busy||!content} onClick={save}>Save draft</button>{active.status==='published'?<button onClick={()=>act(()=>api.unpublish(active.id),'Course unpublished')}>Unpublish</button>:<button className="primary" onClick={()=>act(()=>api.publish(active.id),'Course published')}>Publish</button>}</div>}</header>
-      {notice&&<div className={`notice ${notice.includes('invalid')||notice.includes('required')?'error':''}`}>{notice}<button onClick={()=>setNotice('')}>×</button></div>}
-      {view==='courses'&&<section><div className="hero"><div><p className="eyebrow">LOCAL, MEMORY-LIGHT AUTHORING</p><h1>Build complete courses, then review them as a learner.</h1><p>Import explanations, cards, examples, questions and images. Attach visuals beside any learning item.</p></div><button className="primary" onClick={()=>setView('import')}>Import first course</button></div><div className="course-grid">{courses.map(c=><button className="course-tile" onClick={()=>open(c)} key={c.id}><span className={`status ${c.status}`}>{c.status}</span><h3>{c.title}</h3><p>{c.description}</p><small>{c.board} {c.grade} · {c.subject} · Version {c.version}</small></button>)}{!courses.length&&<div className="empty">No courses yet. Import the comprehensive sample or paste ChatGPT JSON.</div>}</div></section>}
-      {view==='import'&&<section className="workspace"><div className="section-title"><div><p className="eyebrow">CHATGPT CONTENT PACKAGE</p><h1>Paste, validate and import</h1><p>The sample demonstrates every supported content type and image placement.</p></div><button onClick={()=>{setJson(JSON.stringify(sampleCourse,null,2));setNotice('Comprehensive sample loaded into the editor below.')}}>Load sample</button></div><textarea className="json-editor" value={json} onChange={e=>setJson(e.target.value)} spellCheck={false}/><div className="actions bottom"><button className="primary" disabled={busy} onClick={importJson}>{busy?'Validating…':'Validate and import course'}</button></div></section>}
-      {view==='studio'&&content&&selected&&<div className="studio-layout"><aside className="course-tree"><b>Course structure</b>{content.chapters.map(ch=><div key={ch.id}><strong>{ch.title}</strong>{ch.topics.map(t=><div key={t.id}><small>{t.title}</small>{t.concepts.map(c=><button className={selectedConcept===c.id?'active':''} onClick={()=>setSelectedConcept(c.id)} key={c.id}>{c.title}<i className={c.reviewStatus}/></button>)}</div>)}</div>)}</aside><ConceptEditor concept={selected.concept} media={media} onChange={updateConcept}/></div>}
-      {view==='media'&&active&&<section className="workspace"><div className="section-title"><div><p className="eyebrow">MEDIA LIBRARY</p><h1>Upload once. Place anywhere.</h1><p>Supported: PNG, JPG, WebP and SVG, up to 15 MB each. Imported filename references match automatically.</p></div><label className="upload">Upload images<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" multiple onChange={e=>e.target.files&&act(async()=>{const added=await api.uploadMedia(active.id,e.target.files!);setMedia(await api.listMedia(active.id));return added},'Images uploaded')}/></label></div><div className="media-grid">{media.map(item=><article key={item.id}><img src={`${API}${item.url}`} alt={item.altText||item.title}/><div><b>{item.title}</b><code>{item.fileName}</code><Field label="Caption" value={item.caption} onChange={v=>setMedia(media.map(x=>x.id===item.id?{...x,caption:v}:x))}/><Field label="Alternative text" value={item.altText} onChange={v=>setMedia(media.map(x=>x.id===item.id?{...x,altText:v}:x))}/><button onClick={()=>act(()=>api.updateMedia(active.id,item.id,item),'Image details saved')}>Save details</button></div></article>)}</div>{!media.length&&<div className="empty">Upload images whose filenames are referenced in your course JSON. Missing-image placeholders will be replaced automatically.</div>}</section>}
-      {view==='preview'&&content&&<Preview course={content} media={media}/>} 
-      {view==='json'&&content&&<section className="workspace"><div className="section-title"><div><p className="eyebrow">UNIVERSAL EDITOR</p><h1>Edit the complete package</h1><p>Use this for fields not yet exposed in the visual editor.</p></div></div><textarea className="json-editor" value={json} onChange={e=>setJson(e.target.value)} spellCheck={false}/><button className="primary" onClick={()=>{try{setContent(JSON.parse(json));setNotice('JSON applied to draft. Click Save draft to persist.')}catch(e:any){setNotice(e.message)}}}>Apply JSON to draft</button></section>}
-    </main>
-  </div>;
+  const [packages, setPackages] = useState<PackageSummary[]>([]);
+  const [selectedPkg, setSelectedPkg] = useState<string>('');
+  const [chapter, setChapter] = useState<Chapter | null>(null);
+  const [mcqBank, setMcqBank] = useState<McqBank | null>(null);
+  const [type2Bank, setType2Bank] = useState<Type2Bank | null>(null);
+  const [selectedSection, setSelectedSection] = useState<string>('');
+  const [tab, setTab] = useState<Tab>('concepts');
+  const [qSubTab, setQSubTab] = useState<'mcq' | 'type2'>('mcq');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.listPackages()
+      .then(setPackages)
+      .catch(e => setError('Cannot reach API at localhost:3001. Is the server running?'));
+  }, []);
+
+  const loadPackage = async (pkgId: string) => {
+    setLoading(true);
+    setError('');
+    try {
+      const [ch, mcq, t2] = await Promise.all([
+        api.getChapter(pkgId),
+        api.getMcq(pkgId),
+        api.getType2(pkgId),
+      ]);
+      setChapter(ch);
+      setMcqBank(mcq);
+      setType2Bank(t2);
+      setSelectedSection(ch.sections[0]?.id || '');
+      setSelectedPkg(pkgId);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const currentSection = chapter?.sections.find(s => s.id === selectedSection);
+
+  // For TYK: pick MCQs matching the current section's topic (by keyword matching)
+  const sectionMcqs = (section: Section, bank: McqBank): McqQuestion[] => {
+    const titleWords = section.title.toLowerCase().split(/\s+/);
+    const scored = bank.questions.map(q => {
+      const topic = q.topic.toLowerCase();
+      const matches = titleWords.filter(w => w.length > 3 && topic.includes(w)).length;
+      return { q, matches };
+    });
+    const topMatches = scored.filter(x => x.matches > 0).sort((a, b) => b.matches - a.matches).map(x => x.q);
+    if (topMatches.length >= 10) return topMatches.slice(0, 10);
+    // fill remaining from general pool
+    const usedIds = new Set(topMatches.map(q => q.question_id));
+    const fill = bank.questions.filter(q => !usedIds.has(q.question_id));
+    return [...topMatches, ...fill].slice(0, 10);
+  };
+
+  return (
+    <div className="shell">
+      <aside className="sidebar">
+        <div className="brand">
+          <span className="brand-edu">EDU</span><strong>LLM</strong>
+          <small>Content Manager</small>
+        </div>
+
+        {packages.length === 0 && !error && (
+          <div className="sidebar-msg">Loading packages…</div>
+        )}
+
+        {packages.map(pkg => (
+          <div key={pkg.id} className="pkg-group">
+            <div className="pkg-subject">{pkg.subject} · Grade {pkg.grade}</div>
+            <button
+              className={`pkg-btn ${selectedPkg === pkg.id ? 'active' : ''}`}
+              onClick={() => loadPackage(pkg.id)}
+            >
+              {pkg.title}
+            </button>
+
+            {selectedPkg === pkg.id && chapter && (
+              <div className="section-list">
+                {chapter.sections.map(s => (
+                  <button
+                    key={s.id}
+                    className={`section-btn ${selectedSection === s.id ? 'active' : ''}`}
+                    onClick={() => { setSelectedSection(s.id); setTab('concepts'); }}
+                  >
+                    <span className="sec-id">{s.id}</span>
+                    <span className="sec-title">{s.title}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+
+        <div className="sidebar-footer">
+          <div className="role-badge">TEACHER</div>
+          <small>Feed &amp; Review Content</small>
+        </div>
+      </aside>
+
+      <main className="main">
+        {error && <div className="error-bar">{error}</div>}
+
+        {!selectedPkg && !loading && (
+          <div className="empty-state">
+            <h1>EduLLM Content Manager</h1>
+            <p>Select a content package from the sidebar to begin reviewing.</p>
+            {packages.length === 0 && !error && <p className="hint">Make sure the API server is running at <code>localhost:3001</code></p>}
+          </div>
+        )}
+
+        {loading && <div className="loading">Loading content…</div>}
+
+        {selectedPkg && chapter && !loading && (
+          <>
+            <div className="topbar">
+              <div className="topbar-info">
+                <span className="board-badge">{chapter.board} · Class {chapter.grade}</span>
+                <h1>{chapter.title}</h1>
+              </div>
+              <div className="tab-bar">
+                <button className={tab === 'concepts' ? 'active' : ''} onClick={() => setTab('concepts')}>
+                  Concept Pages
+                </button>
+                <button className={tab === 'questions' ? 'active' : ''} onClick={() => setTab('questions')}>
+                  Question Bank
+                </button>
+              </div>
+            </div>
+
+            {tab === 'concepts' && currentSection && mcqBank && (
+              <div className="content-area">
+                <SectionCard
+                  section={currentSection}
+                  pkgId={selectedPkg}
+                  mcqs={sectionMcqs(currentSection, mcqBank)}
+                />
+              </div>
+            )}
+
+            {tab === 'questions' && (
+              <div className="content-area">
+                <div className="subtab-bar">
+                  <button className={qSubTab === 'mcq' ? 'active' : ''} onClick={() => setQSubTab('mcq')}>
+                    Type 1 — MCQs ({mcqBank?.questions.length || 0})
+                  </button>
+                  <button className={qSubTab === 'type2' ? 'active' : ''} onClick={() => setQSubTab('type2')}>
+                    Type 2 — Illustrated ({type2Bank?.questions.length || 0})
+                  </button>
+                </div>
+                {qSubTab === 'mcq' && mcqBank && <McqView pkgId={selectedPkg} bank={mcqBank} />}
+                {qSubTab === 'type2' && type2Bank && <Type2View pkgId={selectedPkg} bank={type2Bank} />}
+              </div>
+            )}
+          </>
+        )}
+      </main>
+    </div>
+  );
 }

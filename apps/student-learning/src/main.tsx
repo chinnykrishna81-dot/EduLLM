@@ -1,21 +1,7 @@
-import React,{useEffect,useState} from 'react';
-import {createRoot} from 'react-dom/client';
-import './styles.css';
-import './progression-index.css';
-import './content-protection.css';
-import {SubjectLearning} from './LearningExperience';
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import StudentApp from './StudentApp';
 
-const API='http://localhost:3001/api';
-type Course={id:string;title:string;description:string;currency:string;listPrice:number;discountPercent:number;salePrice:number;validityDays?:number;subscriptionType:string;subjects:Array<{id:string;title:string;board:string;grade:string}>};
-type Subject={id:string;title:string;board:string;grade:string;units:Array<{id:string;title:string;position:number;chapters:Array<{id:string;title:string;position:number;version?:number;topics:number;content?:any;cycleTest?:any;topicItems?:any[]}>}>};
-async function get<T>(path:string):Promise<T>{const r=await fetch(`${API}${path}`);if(!r.ok)throw new Error('Unable to load published learning content');return r.json()}
-
-function App(){const [courses,setCourses]=useState<Course[]>([]),[course,setCourse]=useState<Course>(),[subject,setSubject]=useState<Subject>(),[error,setError]=useState('');useEffect(()=>{get<Course[]>('/catalogue/courses').then(setCourses).catch(e=>setError(e.message))},[]);useEffect(()=>{const prevent=(event:Event)=>event.preventDefault();document.addEventListener('copy',prevent);document.addEventListener('cut',prevent);document.addEventListener('contextmenu',prevent);return()=>{document.removeEventListener('copy',prevent);document.removeEventListener('cut',prevent);document.removeEventListener('contextmenu',prevent)}},[]);
-  if(subject)return <SubjectIndex subject={subject} back={()=>setSubject(undefined)}/>;
-  if(course)return <CourseDetail course={course} back={()=>setCourse(undefined)} openSubject={id=>get<Subject>(`/catalogue/subjects/${id}/index`).then(setSubject).catch(e=>setError(e.message))}/>;
-  return <div><Nav/><main><section className="student-hero"><div><small>CONDENSED LEARNING · EXAM CONFIDENCE</small><h1>Learn less. Retrieve more. Stay green.</h1><p>Master the unique concepts and problem patterns behind your complete syllabus.</p></div><div className="goal"><b>GO</b><strong>GREEN</strong><span>Until your final exam</span></div></section>{error&&<div className="error">{error}</div>}<section className="catalogue"><header><div><small>PUBLISHED COURSES</small><h2>Choose your preparation path</h2></div><span>{courses.length} available</span></header><div className="course-list">{courses.map(c=><article key={c.id}><div className="cover"><small>{c.subjects[0]?.board||'ACADEMIC'}</small><b>{c.subjects[0]?.grade?`CLASS ${c.subjects[0].grade}`:'COURSE'}</b></div><div className="course-body"><span className="badge">{c.validityDays||'Flexible'} days access</span><h3>{c.title}</h3><p>{c.description}</p><ul>{c.subjects.map(s=><li key={s.id}>{s.title}</li>)}</ul><div className="buy"><div><strong>₹{c.salePrice.toLocaleString('en-IN')}</strong>{c.discountPercent>0&&<><del>₹{c.listPrice.toLocaleString('en-IN')}</del><small>{c.discountPercent}% off</small></>}</div><button onClick={()=>setCourse(c)}>View course</button></div></div></article>)}</div>{!courses.length&&!error&&<div className="empty">No course has been published yet. Published offerings from Content Operations will appear here.</div>}</section></main></div>}
-
-function Nav(){return <nav className="student-nav"><b>EDU<span>LLM</span></b><div><a>Explore</a><a>How it works</a><a>Go Green</a></div><button>Student sign in</button></nav>}
-function CourseDetail({course,back,openSubject}:{course:Course;back:()=>void;openSubject:(id:string)=>void}){return <div><Nav/><main className="detail"><button className="back" onClick={back}>← All courses</button><section className="detail-hero"><div><small>COMPLETE PREPARATION</small><h1>{course.title}</h1><p>{course.description}</p><div className="facts"><span>{course.subjects.length} subject(s)</span><span>{course.validityDays||'Flexible'} days</span><span>Condensed learning</span></div></div><aside><small>COURSE ACCESS</small><strong>₹{course.salePrice.toLocaleString('en-IN')}</strong><button>Subscribe (next slice)</button><span>Local preview access is open</span></aside></section><section className="subject-section"><small>COURSE CONTENT</small><h2>Your subjects</h2>{course.subjects.map(s=><button className="subject-tile" onClick={()=>openSubject(s.id)} key={s.id}><div><b>{s.title}</b><span>{s.board} · Class {s.grade}</span></div><strong>Open syllabus →</strong></button>)}</section></main></div>}
-function SubjectIndex({subject,back}:{subject:Subject;back:()=>void}){return <SubjectLearning subject={subject} back={back}/>}
-createRoot(document.getElementById('root')!).render(<React.StrictMode><App/></React.StrictMode>);
+createRoot(document.getElementById('root')!).render(
+  <React.StrictMode><StudentApp /></React.StrictMode>
+);

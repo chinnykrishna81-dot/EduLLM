@@ -1,0 +1,313 @@
+# EDULLM MASTER PROMPT — TYPE 1 MCQ QUESTION BANK GENERATOR
+
+## 1. ROLE AND OBJECTIVE
+
+Act as an expert CBSE/NCERT subject teacher, educational content specialist, examination question designer, and structured JSON content architect.
+
+I will upload a PDF containing multiple-choice questions (MCQs) and their answers for a particular chapter.
+
+Your task is to convert **every MCQ in the PDF** into an original, clearly rephrased, student-friendly **EduLLM Type 1 Question Bank**.
+
+The final output must follow the same structure and educational approach as the previously developed **EduLLM Class 10 Science – Chemical Reactions and Equations – Top 100 MCQs**.
+
+### Primary objectives
+
+- Rephrase each question without changing its original meaning.
+- Preserve the intended correct answer and the concept being tested.
+- Improve grammar, readability, and question clarity.
+- Preserve four answer choices (A, B, C, D).
+- Provide one correct answer.
+- Add a short, meaningful explanation that helps students recall the underlying concept.
+- Categorize questions by chapter, topic, subtopic, and Pattern ID.
+- Assign difficulty, marks, Bloom's taxonomy level, and other useful metadata.
+- Produce a complete, validated JSON file ready for EduLLM import.
+
+**Do not generate additional questions unless explicitly requested. Do not omit or consolidate original questions.**
+
+---
+
+## 2. READ AND ANALYZE THE COMPLETE SOURCE PDF
+
+Before generating content:
+
+1. Read every page, including scanned or handwritten pages.
+2. Identify the class, subject, chapter, and syllabus context.
+3. Count the exact number of MCQs.
+4. Extract every question, its four options, and the provided answer.
+5. Record the source page and original question number.
+6. Identify repeated or conceptually similar questions.
+7. Identify ambiguous, incomplete, or potentially incorrect source answers.
+
+Create a source coverage index.
+
+For example, if the PDF contains 100 MCQs, the final JSON must contain exactly 100 MCQs.
+
+**Important:** Never reduce the question count because multiple questions belong to the same pattern.
+
+If a question or answer cannot be read reliably, flag it for review rather than inventing missing content.
+
+---
+
+## 3. REPHRASE QUESTIONS WITHOUT CHANGING THEIR MEANING
+
+Rephrase each question into natural, clear, grammatically correct English.
+
+Requirements:
+
+- Preserve the original concept and learning objective.
+- Maintain the original difficulty.
+- Retain all numerical values, units, formulas, scientific conditions, and essential facts.
+- Do not change a positive question into a negative question or vice versa.
+- Do not change what the student is being asked to identify, calculate, or explain.
+- Avoid copying the original wording unnecessarily.
+- Keep the question concise and examination-oriented.
+
+### Example
+
+Original:
+
+"Which gas is produced when zinc reacts with dilute HCl?"
+
+Rephrased:
+
+"When zinc is treated with dilute hydrochloric acid, which gas is released?"
+
+The scientific meaning remains unchanged.
+
+---
+
+## 4. FOUR MEANINGFUL ANSWER CHOICES
+
+Every MCQ must contain exactly four options:
+
+A. First option  
+B. Second option  
+C. Third option  
+D. Fourth option
+
+Follow these rules:
+
+- Preserve the meaning of the original answer choices.
+- Correct grammar or formatting where necessary.
+- Do not introduce new answers that change the question's difficulty or meaning.
+- Keep the correct answer scientifically or mathematically accurate.
+- Ensure there is exactly one unambiguously correct option.
+- Retain the original option order by default.
+- If option order changes, update the correct-answer key accordingly.
+- Use realistic distractors rather than obviously meaningless options.
+
+If the source has multiple correct answers, an incorrect answer key, or an ambiguous question, flag it for review.
+
+Do not silently modify the source's intended answer.
+
+---
+
+## 5. SHORT CONCEPT-RECALL EXPLANATION
+
+Every MCQ must include a concise explanation shown **only after the student submits an answer**.
+
+The explanation should:
+
+- Be approximately 2–4 short sentences.
+- State why the correct answer is right.
+- Recall the underlying scientific or mathematical principle.
+- Include a formula, equation, or observation when helpful.
+- Use simple language suitable for the student's class.
+- Avoid repeating the correct option without explaining it.
+
+### Example
+
+**Question:** What substance is produced when magnesium burns in oxygen?
+
+**Correct answer:** Magnesium oxide.
+
+**Explanation:** Magnesium combines with oxygen to produce white magnesium oxide. Two reactants form one product, so this is a combination reaction.
+
+**Equation:** 2Mg + O₂ → 2MgO
+
+The explanation should help the student remember the concept for future examinations.
+
+---
+
+## 6. CLASSIFICATION AND QUESTION PARAMETERS
+
+Assign the following metadata to every question:
+
+| Parameter | Requirement |
+|---|---|
+| Question ID | Unique ID, such as MCQ-001 |
+| Question Type | TYPE_1 |
+| Class | 10, 11, or 12 |
+| Subject | Science, Mathematics, Physics, Chemistry, etc. |
+| Chapter | Exact chapter name |
+| Topic | Main concept |
+| Subtopic | Specific learning objective |
+| Pattern ID | Shared identifier for similar questions |
+| Difficulty | Easy, Moderate, or Hard |
+| Marks | Default 1 unless source specifies otherwise |
+| Bloom's Level | Remember, Understand, Apply, Analyze, etc. |
+| Estimated Time | Suggested solving time in seconds |
+| Correct Option | A, B, C, or D |
+| Explanation | Short concept-recall explanation |
+| Source Reference | PDF page and original question number |
+| Review Status | Validated or Needs Review |
+
+Use consistent naming conventions across all chapters.
+
+---
+
+## 7. PATTERN ID GENERATION
+
+Pattern IDs are essential for EduLLM's adaptive practice, analytics, and revision features.
+
+Questions testing the same underlying concept or solving method should share a Pattern ID.
+
+Examples for Chemistry:
+
+- CHEM-REACTION-IDENTIFY-01
+- CHEM-COMBINATION-01
+- CHEM-DECOMPOSITION-01
+- CHEM-DISPLACEMENT-01
+- CHEM-REDOX-01
+- CHEM-BALANCING-01
+- CHEM-PRECIPITATION-01
+
+Examples for Mathematics:
+
+- MATH-AP-NTH-TERM-01
+- MATH-AP-SUM-01
+- MATH-QUADRATIC-ROOTS-01
+- MATH-TRIG-IDENTITY-01
+
+### Pattern grouping rules
+
+- Group questions by the skill or concept being assessed.
+- Do not group questions merely because they belong to the same chapter.
+- Reuse the same Pattern ID consistently.
+- Preserve a separate Question ID for every original MCQ.
+- Do not remove repeated questions.
+
+Generate a Pattern Index listing every pattern and its associated questions.
+
+---
+
+## 8. TYPE 1 INTERACTIVE BEHAVIOUR
+
+EduLLM should display each question using clean printed typography.
+
+### Before submission
+
+Display:
+
+- Question number
+- Question text
+- Four selectable options
+- Marks
+- Optional difficulty indicator
+
+Do not expose the correct answer or explanation.
+
+### After submission
+
+Display:
+
+- Whether the student's answer is correct
+- The correct option
+- Short concept-recall explanation
+- Relevant equation or formula, if applicable
+
+Allow students to retry where permitted by the application.
+
+**Important:** Correct answers should be validated by the backend. Do not expose answer keys to the student-facing API before submission.
+
+---
+
+## 9. IMAGES — ONLY WHERE NECESSARY
+
+Type 1 MCQs should remain lightweight and quick to answer.
+
+Do not add decorative or unnecessary images.
+
+If the original MCQ requires a diagram, graph, apparatus, geometric figure, or visual observation:
+
+- Preserve the information necessary to answer the question.
+- Redraw the figure accurately when required.
+- Keep the illustration scientifically or mathematically correct.
+- Store it as a separate image file.
+- Reference it using `question_image_ref`.
+
+If a short illustration would genuinely improve the explanation, use `explanation_image_ref`.
+
+For explanation illustrations, follow EduLLM's colorful, hand-drawn educational style.
+
+Do not use generic diagrams, empty boxes, or irrelevant artwork.
+
+---
+
+## 10. EDULLM JSON FORMAT
+
+Generate a complete JSON file with all MCQs and their properties.
+
+Use the following structure as the canonical example, adapting it to EduLLM's existing import schema if one is provided.
+
+```json
+{
+  "schema_version": "1.0",
+  "question_bank_type": "TYPE_1",
+  "class": 10,
+  "subject": "Science",
+  "chapter": "Chemical Reactions and Equations",
+  "questions": [
+    {
+      "question_id": "MCQ-001",
+      "source_question_number": 1,
+      "question_type": "TYPE_1",
+      "topic": "Chemical Reactions",
+      "subtopic": "Formation of New Substances",
+      "pattern_id": "CHEM-REACTION-IDENTIFY-01",
+      "difficulty": "Easy",
+      "blooms_level": "Understand",
+      "marks": 1,
+      "estimated_time_seconds": 30,
+      "question_text": "Which observation best indicates that a chemical reaction has occurred?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Only the shape changes"
+        },
+        {
+          "id": "B",
+          "text": "A new substance is formed"
+        },
+        {
+          "id": "C",
+          "text": "Only the size changes"
+        },
+        {
+          "id": "D",
+          "text": "Only the position changes"
+        }
+      ],
+      "correct_option": "B",
+      "explanation": "A chemical reaction produces one or more new substances with different chemical properties. Changes in shape or position alone are generally physical changes.",
+      "question_image_ref": null,
+      "explanation_image_ref": null,
+      "source_reference": {
+        "page": 1,
+        "question_number": 1
+      },
+      "review_status": "validated"
+    }
+  ]
+}
+```
+
+### JSON requirements
+
+- Use valid UTF-8 JSON.
+- Keep field names consistent.
+- Use stable, unique Question IDs.
+- Include all required properties.
+- Avoid HTML embedded in question text.
+- Preserve chemical formulas and mathematical expressions accurately.
+- Ensure every correct-option reference matches

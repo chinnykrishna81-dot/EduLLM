@@ -35,7 +35,8 @@ const publicQuestion = (row: any) => ({
   duplicateConfidence: row.duplicate_confidence === null ? null : Number(row.duplicate_confidence),
   usage: row.usage,
   status: row.status,
-  sourceReferences: row.source_references || []
+  sourceReferences: row.source_references || [],
+  steps: (row.data?.steps || []).map((step: any) => ({ ...step, answer: step.answer ?? step.correctAnswer ?? '' }))
 });
 const numbered = (text: string) => {
   const lines = String(text || '')
@@ -73,6 +74,59 @@ export class QuestionBankService {
   async list(chapterId: string) {
     const r = await query(`SELECT q.*,COALESCE(json_agg(json_build_object('sourceName',s.source_name,'sourceCategory',s.source_category,'year',s.source_year,'questionNumber',s.question_number,'pageNumber',s.page_number)) FILTER(WHERE s.source_reference_id IS NOT NULL),'[]') source_references FROM question_bank q LEFT JOIN question_source_reference s ON s.question_id=q.question_id WHERE q.chapter_id=$1 GROUP BY q.question_id ORDER BY q.created_at`, [chapterId]);
     return r.rows.map(publicQuestion);
+  }
+
+  /** Canonical student/preview practice delivery from the unified bank. */
+  async practice(chapterId: string) {
+    const questions = await this.list(chapterId);
+    return questions
+      .filter((question: any) => (question.usage || []).includes('chapter_practice'))
+      .sort((a: any, b: any) => Number(a.position || 0) - Number(b.position || 0))
+      .map((question: any) => ({
+        ...question,
+        steps: question.steps || question.data?.steps || [],
+        finalAnswer: question.finalAnswer || question.data?.finalAnswer || question.data?.explanation || undefined,
+        explanation: question.explanation || question.data?.explanation || question.data?.answer || '',
+      }));
+  }
+
+  async topics(chapterId: string) {
+    const r = await query('SELECT content FROM chapter_library WHERE chapter_id=$1', [chapterId]);
+    if (!r.rowCount) throw new UnprocessableEntityException('Chapter not found');
+    return (r.rows[0].content?.topics || []).map((topic: any) => ({ id: topic.id, title: topic.title, subtopics: topic.subtopics || [] }));
+  }
+
+  async setPractice(chapterId: string, questionIds: unknown[]) {
+    if (!Array.isArray(questionIds)) throw new UnprocessableEntityException('questionIds must be an array');
+    const ids = [...new Set(questionIds.map(String).filter(Boolean))];
+    await query(`UPDATE question_bank SET usage=array_remove(usage,'chapter_practice'),updated_at=now() WHERE chapter_id=$1`, [chapterId]);
+    if (ids.length) await query(`UPDATE question_bank SET usage=CASE WHEN 'chapter_practice'=ANY(usage) THEN usage ELSE array_append(usage,'chapter_practice') END,updated_at=now() WHERE chapter_id=$1 AND question_id=ANY($2::varchar[])`, [chapterId, ids]);
+    return { success: true, count: ids.length };
+  }
+
+  async removeChapter(chapterId: string) {
+    const r = await query('DELETE FROM question_bank WHERE chapter_id=$1 RETURNING question_id', [chapterId]);
+    return { deleted: r.rowCount || 0 };
+  }
+
+  async patterns(chapterId: string) {
+    const r = await query(`SELECT pattern_id,COUNT(*)::int count,MIN(question_text) sample,MIN(NULLIF(topic_id,'')) topic_id FROM question_bank WHERE chapter_id=$1 AND pattern_id<>'' GROUP BY pattern_id ORDER BY pattern_id`, [chapterId]);
+    return r.rows.map(row => ({ patternId: row.pattern_id, count: row.count, sample: row.sample, topicId: row.topic_id }));
+  }
+
+  async assignPatterns(chapterId: string, assignments: any[]) {
+    if (!Array.isArray(assignments)) throw new UnprocessableEntityException('Assignments must be an array');
+    let updated = 0;
+    for (const item of assignments) {
+      const r = await query(`UPDATE question_bank SET topic_id=$1,updated_at=now() WHERE chapter_id=$2 AND pattern_id=$3`, [item.topicId || '', chapterId, String(item.patternId || '')]);
+      updated += r.rowCount || 0;
+    }
+    return { updated };
+  }
+
+  async suggestPatterns(chapterId: string) {
+    // Suggestions remain non-mutating; callers may review and apply them.
+    return { assignments: [] };
   }
   async statistics(chapterId: string) {
     const questions = await this.list(chapterId),

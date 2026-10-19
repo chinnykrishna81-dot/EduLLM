@@ -7,7 +7,17 @@ import {ChapterLearning} from '../../student-learning/src/LearningExperience';
 
 export function StudentTopicPreview({chapter,exit}:{chapter:LibraryChapter;exit:()=>void}){
   const subject={title:chapter.subjectTags?.[0]||'Science',board:chapter.boardTags?.[0]||'',grade:chapter.gradeTags?.[0]||''};
-  return <ChapterLearning subject={subject} chapter={chapter} back={exit}/>;
+  const [extPractice,setExtPractice]=useState<any>(undefined);
+  useEffect(()=>{
+    const token=localStorage.getItem('edullm_cms_token');
+    fetch(`${API}/api/catalogue/chapters/${chapter.id}/assessment`,{headers:token?{authorization:`Bearer ${token}`}:{}})
+      .then(r=>r.ok?r.json():{questions:[]})
+      .then((data:any)=>{const qs=data.questions||[];
+        if(!qs.length){setExtPractice(null);return;}
+        setExtPractice({title:'Chapter Practice',instructions:'Practice questions · no marks · immediate feedback',type1Questions:qs.filter((q:any)=>q.type!=='type2'),type2Questions:qs.filter((q:any)=>q.type==='type2')});
+      }).catch(()=>setExtPractice(null));
+  },[chapter.id]);
+  return <ChapterLearning subject={subject} chapter={chapter} back={exit} externalPractice={extPractice}/>;
 }
 
 function SlideStudentTopicPreview({chapter,exit}:{chapter:LibraryChapter;exit:()=>void}){

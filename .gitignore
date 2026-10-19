@@ -34,6 +34,9 @@ storage/uploads/*
 *.pfx
 .aws/
 
+# Local archive of superseded packages and handoff artifacts
+archive/
+
 # Local editor and operating-system state
 .idea/
 .vscode/

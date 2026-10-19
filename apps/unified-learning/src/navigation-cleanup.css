@@ -1,0 +1,4 @@
+.topic-end > small { display: none !important; }
+.topic-end > button { font-size: 0 !important; }
+.topic-end > button::after { content: "CONTINUE"; font-size: 18px; }
+.standalone-topic-end { background: transparent !important; border: 0 !important; padding: 0 !important; margin: 0 auto 30px !important; }

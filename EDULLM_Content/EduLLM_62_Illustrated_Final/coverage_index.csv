@@ -1,0 +1,63 @@
+Question,Main question,Topic,Pattern ID,Image file,Placement
+1,What is a chemical reaction?,Basics of chemical reactions,CHEM-PAT-BASICS-OF-CHEMICAL-REACTIONS,images/question_01.png,Explanation only
+2,Why should a chemical equation be balanced?,Balancing equations,CHEM-PAT-BALANCING-CONSERVATION,images/question_02.svg,Explanation only
+3,"Differentiate physical change and chemical change, with examples.",Basics of chemical reactions,CHEM-PAT-BASICS-OF-CHEMICAL-REACTIONS,images/question_03.svg,Explanation only
+4,What happens when an iron nail is dipped into copper sulphate solution?,Displacement reactions,CHEM-PAT-DISPLACEMENT,images/question_04.png,Explanation only
+5,Why is respiration called an exothermic reaction?,Exothermic reactions,CHEM-PAT-ENERGY-CHANGES,images/question_05.svg,Explanation only
+6,What is rancidity?,Rancidity,CHEM-PAT-RANCIDITY,images/question_06.svg,Explanation only
+7,State observations that indicate a chemical reaction.,Indicators of chemical change,CHEM-PAT-INDICATORS-OF-CHEMICAL-CHANGE,images/question_07.svg,Explanation only
+8,Why do we apply oil or grease on machines?,Corrosion and prevention,CHEM-PAT-CORROSION-RUSTING,images/question_08.svg,Explanation only
+9,Define a decomposition reaction with an example.,Decomposition reactions,CHEM-PAT-DECOMPOSITION,images/question_09.svg,Explanation only
+10,Identify the reaction types: potassium with water and calcium carbonate on heating.,Reaction classification,CHEM-PAT-REACTION-CLASSIFICATION,images/question_10.svg,Explanation only
+11,Why is rusting considered a chemical change?,Corrosion and prevention,CHEM-PAT-CORROSION-RUSTING,images/question_11.svg,Explanation only
+12,Why are food packets flushed with nitrogen gas?,Preventing rancidity,CHEM-PAT-RANCIDITY,images/question_12.png,Explanation only
+13,Define combination reaction and give an example.,Combination reactions,CHEM-PAT-COMBINATION,images/question_13.svg,Explanation only
+14,Give an example of decomposition caused by heat.,Thermal decomposition,CHEM-PAT-DECOMPOSITION,images/question_14.png,Explanation only
+15,Give an example of displacement reaction.,Displacement reactions,CHEM-PAT-DISPLACEMENT,images/question_15.svg,Explanation only
+16,Give an example of double displacement reaction.,Precipitation reactions,CHEM-PAT-PRECIPITATION,images/question_16.svg,Explanation only
+17,Differentiate exothermic and endothermic reactions.,Energy changes,CHEM-PAT-ENERGY-CHANGES,images/question_17.svg,Explanation only
+18,What happens when lead nitrate and potassium iodide solutions are mixed? Write the equation.,Precipitation reactions,CHEM-PAT-PRECIPITATION,images/question_18.svg,Explanation only
+19,Why do we balance chemical equations?,Balancing equations,CHEM-PAT-BALANCING-CONSERVATION,images/question_19.svg,Explanation only
+20,What is respiration? Write its balanced equation.,Respiration,CHEM-PAT-RESPIRATION,images/question_20.svg,Explanation only
+21,What is oxidation? Give an example.,Oxidation and reduction,CHEM-PAT-REDOX,images/question_21.svg,Explanation only
+22,What is reduction? Give an example.,Oxidation and reduction,CHEM-PAT-REDOX,images/question_22.svg,Explanation only
+23,What is a redox reaction? Give an example.,Redox reactions,CHEM-PAT-REDOX,images/question_23.svg,Explanation only
+24,State the law of conservation of mass.,Chemical equations and balancing,CHEM-PAT-BALANCING-CONSERVATION,images/question_24.svg,Explanation only
+25,What is the role of a catalyst in a chemical reaction?,Catalysts,CHEM-PAT-CATALYSTS,images/question_25.svg,Explanation only
+26,Differentiate reversible and irreversible reactions.,Types of chemical reactions,CHEM-PAT-TYPES-OF-CHEMICAL-REACTIONS,images/question_26.svg,Explanation only
+27,Why do we generally use dilute acids in chemical reactions?,Laboratory reactions and safety,CHEM-PAT-LABORATORY-REACTIONS-AND-SAFETY,images/question_27.svg,Explanation only
+28,What happens when calcium oxide is added to water? Write equation.,Energy changes in reactions,CHEM-PAT-ENERGY-CHANGES,images/question_28.svg,Explanation only
+29,What is corrosion? How can it be prevented?,Corrosion prevention,CHEM-PAT-CORROSION-RUSTING,images/question_29.svg,Explanation only
+30,Why are thermite reactions used in welding railway tracks?,Energy changes in reactions,CHEM-PAT-ENERGY-CHANGES,images/question_30.svg,Explanation only
+31,Write balanced chemical equations for the given word equations.,Balancing equations,CHEM-PAT-BALANCING-CONSERVATION,images/question_31.svg,Explanation only
+32,Differentiate combination and decomposition reactions.,Reaction classification,CHEM-PAT-REACTION-CLASSIFICATION,images/question_32.svg,Explanation only
+33,What is the role of oxygen in burning magnesium?,Combination reactions,CHEM-PAT-COMBINATION,images/question_33.svg,Explanation only
+34,What happens when sodium is added to water? Give equation.,Displacement reactions,CHEM-PAT-DISPLACEMENT,images/question_34.svg,Explanation only
+35,Differentiate physical mixture and chemical reaction.,Physical and chemical changes,CHEM-PAT-PHYSICAL-AND-CHEMICAL-CHANGES,images/question_35.svg,Explanation only
+36,Why is rusting of iron considered a slow chemical reaction?,Corrosion and rusting,CHEM-PAT-CORROSION-RUSTING,images/question_36.svg,Explanation only
+37,Write balanced equation for neutralisation of sodium hydroxide with hydrochloric acid.,Neutralisation,CHEM-PAT-NEUTRALISATION,images/question_37.svg,Explanation only
+38,Why is photosynthesis an endothermic process?,Energy changes in reactions,CHEM-PAT-ENERGY-CHANGES,images/question_38.svg,Explanation only
+39,What are the effects of corrosion?,Corrosion and prevention,CHEM-PAT-CORROSION-RUSTING,images/question_39.svg,Explanation only
+40,Classify four reactions and write balanced equations.,Reaction classification,CHEM-PAT-REACTION-CLASSIFICATION,images/question_40.svg,Explanation only
+41,What is bleaching powder? Give formula and one use.,Applications of chemical reactions,CHEM-PAT-APPLICATIONS-OF-CHEMICAL-REACTIONS,images/question_41.svg,Explanation only
+42,Why is calcium oxide called a basic oxide? Write reaction with water.,Combination reactions,CHEM-PAT-COMBINATION,images/question_42.svg,Explanation only
+43,What happens when steam is passed over red-hot iron?,Oxidation and reduction,CHEM-PAT-REDOX,images/question_43.svg,Explanation only
+44,Write a balanced equation for barium hydroxide and aluminium sulphate.,Precipitation reactions,CHEM-PAT-PRECIPITATION,images/question_44.svg,Explanation only
+45,What happens when iron filings are added to copper sulphate solution?,Displacement reactions,CHEM-PAT-DISPLACEMENT,images/question_45.svg,Explanation only
+46,Write balanced equation for combustion of methane.,Energy changes in reactions,CHEM-PAT-ENERGY-CHANGES,images/question_46.svg,Explanation only
+47,Differentiate rusting and corrosion.,Corrosion and prevention,CHEM-PAT-CORROSION-RUSTING,images/question_47.svg,Explanation only
+48,What is the role of carbon dioxide in a fire extinguisher?,Applications of chemical reactions,CHEM-PAT-APPLICATIONS-OF-CHEMICAL-REACTIONS,images/question_48.svg,Explanation only
+49,Write the balanced equation for reaction between hydrogen and oxygen.,Combination reactions,CHEM-PAT-COMBINATION,images/question_49.svg,Explanation only
+50,What happens when dilute acetic acid is added to sodium hydrogen carbonate? Give equation.,Gas evolution reactions,CHEM-PAT-GAS-EVOLUTION-REACTIONS,images/question_50.svg,Explanation only
+51,What happens when lead nitrate solution is mixed with potassium iodide solution? Write the balanced equation.,Precipitation reactions,CHEM-PAT-PRECIPITATION,images/question_51.svg,Explanation only
+52,Why do we store food in a refrigerator?,Rancidity and prevention,CHEM-PAT-RANCIDITY,images/question_52.svg,Explanation only
+53,What is rancidity and how can it be prevented?,Rancidity,CHEM-PAT-RANCIDITY,images/question_53.svg,Explanation only
+54,What causes corrosion of metals? How can it be prevented?,Corrosion prevention,CHEM-PAT-CORROSION-RUSTING,images/question_54.svg,Explanation only
+55,What is the use of baking soda?,Applications of chemical reactions,CHEM-PAT-APPLICATIONS-OF-CHEMICAL-REACTIONS,images/question_55.svg,Explanation only
+56,Why is slaking of lime exothermic? Write the equation.,Exothermic reactions,CHEM-PAT-ENERGY-CHANGES,images/question_56.svg,Explanation only
+57,What is the role of a catalyst? Give an example.,Catalysts,CHEM-PAT-CATALYSTS,images/question_57.svg,Explanation only
+58,Differentiate decomposition and double displacement reactions with examples.,Types of chemical reactions,CHEM-PAT-TYPES-OF-CHEMICAL-REACTIONS,images/question_58.svg,Explanation only
+59,Why does white coating form on old silver articles? How can it be cleaned?,Corrosion and prevention,CHEM-PAT-CORROSION-RUSTING,images/question_59.svg,Explanation only
+60,Why do we prefer soap over synthetic detergents for washing clothes?,Applications of chemical reactions,CHEM-PAT-APPLICATIONS-OF-CHEMICAL-REACTIONS,images/question_60.svg,Explanation only
+61,Identify the type and one benefit of two reactions: iron chloride formation and silver chloride decomposition.,Reaction classification,CHEM-PAT-REACTION-CLASSIFICATION,images/question_61.svg,Explanation only
+62,Write balanced equations for quicklime with water and aluminium with oxygen.,Balancing equations,CHEM-PAT-BALANCING-CONSERVATION,images/question_62.svg,Explanation only

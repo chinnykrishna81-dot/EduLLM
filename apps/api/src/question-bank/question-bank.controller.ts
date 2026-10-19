@@ -12,6 +12,24 @@ export class QuestionBankController {
   @Get('question-bank/chapters/:chapterId/statistics') statistics(@Param('chapterId') chapterId: string) {
     return this.bank.statistics(chapterId);
   }
+  @Get('question-bank/chapters/:chapterId/practice') practice(@Param('chapterId') chapterId: string) {
+    return this.bank.practice(chapterId);
+  }
+  @Get('question-bank/chapters/:chapterId/topics') topics(@Param('chapterId') chapterId: string) {
+    return this.bank.topics(chapterId);
+  }
+  @Post('question-bank/chapters/:chapterId/practice') setPractice(@Param('chapterId') chapterId: string, @Body() body: any) {
+    return this.bank.setPractice(chapterId, body.questionIds || []);
+  }
+  @Post('question-bank/chapters/:chapterId/questions') create(@Param('chapterId') chapterId: string, @Body() body: any, @Req() req: any) {
+    return this.bank.directImport(chapterId, [body], 'Manual question', req.user.id);
+  }
+  @Delete('question-bank/chapters/:chapterId/questions') removeChapter(@Param('chapterId') chapterId: string) {
+    return this.bank.removeChapter(chapterId);
+  }
+  @Get('question-bank/chapters/:chapterId/patterns') patterns(@Param('chapterId') chapterId: string) { return this.bank.patterns(chapterId); }
+  @Patch('question-bank/chapters/:chapterId/patterns/assign') assignPatterns(@Param('chapterId') chapterId: string, @Body() body: any) { return this.bank.assignPatterns(chapterId, body); }
+  @Post('question-bank/chapters/:chapterId/patterns/ai-suggest') suggestPatterns(@Param('chapterId') chapterId: string) { return this.bank.suggestPatterns(chapterId); }
   @Post('question-bank/chapters/:chapterId/import')
   @UseInterceptors(
     FilesInterceptor('files', 2, {

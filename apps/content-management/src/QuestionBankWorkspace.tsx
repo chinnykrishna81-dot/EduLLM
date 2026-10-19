@@ -29,8 +29,8 @@ const yes = (value: any) =>
       .toLowerCase()
   );
 
-export function QuestionBankWorkspace({ chapters, user }: { chapters: LibraryChapter[]; user: CmsUser }) {
-  const [chapterId, setChapterId] = useState(chapters[0]?.id || ''),
+export function QuestionBankWorkspace({ chapters, user, initialChapterId }: { chapters: LibraryChapter[]; user: CmsUser; initialChapterId?: string }) {
+  const [chapterId, setChapterId] = useState(initialChapterId || chapters[0]?.id || ''),
     [questions, setQuestions] = useState<any[]>([]),
     [stats, setStats] = useState<any>(),
     [selected, setSelected] = useState<string[]>([]),

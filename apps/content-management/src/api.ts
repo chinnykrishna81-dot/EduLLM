@@ -13,9 +13,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 export type CmsUser = {
   id: string;
+  loginId?: string;
   email: string;
   displayName: string;
-  role: 'admin' | 'teacher';
+  role: 'admin' | 'teacher' | 'student';
   status: 'active' | 'disabled';
   mustChangePassword: boolean;
   createdAt: string;
@@ -37,11 +38,13 @@ export const authApi = {
   users: () => request<CmsUser[]>('/users'),
   createTeacher: (body: any) => request<CmsUser>('/users', { method: 'POST', body: JSON.stringify(body) }),
   setStatus: (id: string, status: string) => request<CmsUser>(`/users/${id}/status/${status}`, { method: 'PATCH' }),
+  setLoginId: (id: string, loginId: string) => request<CmsUser>(`/users/${id}/login-id`, { method: 'PATCH', body: JSON.stringify({ loginId }) }),
   resetPassword: (id: string, password: string) =>
     request<CmsUser>(`/users/${id}/reset-password`, {
       method: 'POST',
       body: JSON.stringify({ password })
-    })
+    }),
+  deleteUser: (id: string) => request<{ deleted: boolean }>(`/users/${id}`, { method: 'DELETE' })
 };
 
 export type CourseRecord = {
@@ -125,6 +128,12 @@ export type CourseOffering = {
   discountPercent: number;
   salePrice: number;
   validityDays?: number;
+  validityMode: 'duration'|'date_range';
+  validityValue?: number;
+  validityUnit?: 'days'|'months';
+  validityStartDate?: string;
+  validityEndDate?: string;
+  freeTrialDays: number;
   subscriptionType: string;
   thumbnailUrl: string;
   subjects: Array<{
@@ -236,6 +245,8 @@ export const platformApi = {
       method: 'PUT',
       body: JSON.stringify(body)
     }),
+  deleteCycleTestForms: (id: string) =>
+    request<{ deleted: boolean }>(`/library/chapters/${id}/cycle-test/forms`, { method: 'DELETE' }),
   validateChapterPackage: (body: any) =>
     request<ChapterPackageValidation>('/library/chapter-packages/validate', {
       method: 'POST',
@@ -284,12 +295,16 @@ export const platformApi = {
       method: 'POST',
       body: JSON.stringify(body)
     }),
+  deleteOffering: (id: string) => request<{ deleted: boolean }>(`/offerings/${id}`, { method: 'DELETE' }),
+  updateOffering: (id: string, body: any) => request<CourseOffering>(`/offerings/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  unpublishOffering: (id: string) => request<CourseOffering>(`/offerings/${id}/unpublish`, { method: 'POST' }),
   setOfferingSubjects: (id: string, subjectIds: string[]) =>
     request<CourseOffering>(`/offerings/${id}/subjects`, {
       method: 'PUT',
       body: JSON.stringify({ subjectIds })
     }),
-  publishOffering: (id: string) => request<CourseOffering>(`/offerings/${id}/publish`, { method: 'POST' })
+  publishOffering: (id: string) => request<CourseOffering>(`/offerings/${id}/publish`, { method: 'POST' }),
+  chapterQuestions: (chapterId: string) => request<any[]>(`/question-bank/chapters/${chapterId}`),
 };
 
 export const questionBankApi = {
@@ -341,26 +356,4 @@ export const questionBankApi = {
     }),
   aiSettings: () => request<any>('/ai-settings'),
   saveAiSettings: (body: any) => request<any>('/ai-settings', { method: 'PUT', body: JSON.stringify(body) })
-};
-export const contentBaseApi = {
-  batches: () => request<any[]>('/content-base'),
-  batch: (id: string) => request<any>(`/content-base/${id}`),
-  remove: (id: string) => request<any>(`/content-base/${id}`, { method: 'DELETE' }),
-  import: (file: File, metadata: any) => {
-    const form = new FormData();
-    form.append('file', file);
-    Object.entries(metadata).forEach(([key, value]) => form.append(key, String(value || '')));
-    return request<any>('/content-base/import', { method: 'POST', body: form });
-  },
-  updateItem: (id: string, body: any) =>
-    request<any>(`/content-base/items/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(body)
-    }),
-  proposal: (id: string) => request<any>(`/content-base/${id}/proposal`),
-  load: (id: string, title?: string) =>
-    request<any>(`/content-base/${id}/load`, {
-      method: 'POST',
-      body: JSON.stringify({ title })
-    })
 };
