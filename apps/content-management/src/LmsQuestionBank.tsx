@@ -753,12 +753,13 @@ function FormAnalysis({ questions, cycleConfig }: { questions: any[]; cycleConfi
   const qIdx = (id: string) => questions.findIndex(q => q.id === id);
   const qLabel = (id: string) => { const i = qIdx(id); return i >= 0 ? `Q${i + 1}` : null; };
 
-  const { sections, forms } = cycleConfig;
+  const sections = Array.isArray(cycleConfig?.sections) ? cycleConfig.sections : [];
+  const forms = Array.isArray(cycleConfig?.forms) ? cycleConfig.forms : [];
   const sectionById = new Map<string, any>(sections.map((s: any) => [s.id, s]));
 
   // All question IDs used in any form
   const usedInAnyForm = new Set<string>(
-    forms.flatMap((f: any) => f.sections.flatMap((s: any) => s.questionIds))
+    forms.flatMap((f: any) => (Array.isArray(f.sections) ? f.sections : []).flatMap((s: any) => Array.isArray(s.questionIds) ? s.questionIds : []))
   );
   const unusedInForms = questions.filter(q => !usedInAnyForm.has(q.id));
 
@@ -785,7 +786,7 @@ function FormAnalysis({ questions, cycleConfig }: { questions: any[]; cycleConfi
               </div>
               {!allEmpty && (
                 <div style={{ padding: '10px 14px', display: 'grid', gap: 8 }}>
-                  {form.sections.map((fs: any) => {
+                  {(Array.isArray(form.sections) ? form.sections : []).map((fs: any) => {
                     const sec = sectionById.get(fs.sectionId);
                     if (!fs.questionIds.length) return null;
                     const labels = fs.questionIds.map((id: string) => qLabel(id)).filter(Boolean) as string[];
