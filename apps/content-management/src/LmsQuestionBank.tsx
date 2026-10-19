@@ -137,6 +137,7 @@ function buildImportPayload(q: any, imgUrl: string | undefined, topicMap: Map<st
     const correctAnswer = correctOpt?.text ?? '';
     const tid = q.topic ? (topicId(q.topic) ?? (q.subtopic ? topicId(q.subtopic) : null)) : null;
     return {
+      id: q.question_id || q.id || uid(),
       type: 'type1',
       format: 'mcq',
       question: q.question ?? '',
@@ -175,6 +176,7 @@ function buildImportPayload(q: any, imgUrl: string | undefined, topicMap: Map<st
 
   if (isType1) {
     return {
+      id: q.question_id || q.id || uid(),
       type: 'type1',
       format: 'mcq',
       question: q.main_question || q.question || '',
@@ -194,6 +196,7 @@ function buildImportPayload(q: any, imgUrl: string | undefined, topicMap: Map<st
   }
 
   return {
+    id: q.question_id || q.id || uid(),
     type: 'type2',
     format: 'guided',
     question: q.main_question || '',
