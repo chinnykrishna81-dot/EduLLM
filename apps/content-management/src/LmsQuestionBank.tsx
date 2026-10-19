@@ -92,7 +92,10 @@ async function uploadImages(chapterId: string, files: File[]): Promise<Map<strin
     headers: { Authorization: `Bearer ${token()}` },
     body: form,
   });
-  if (!res.ok) throw new Error('Image upload failed');
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Image upload failed (${res.status})${detail ? `: ${detail.slice(0, 240)}` : ''}`);
+  }
   const arr: { fileName?: string; originalName?: string; url: string }[] = await res.json();
   const map = new Map<string, string>();
   for (const item of arr) {
