@@ -93,9 +93,12 @@ async function uploadImages(chapterId: string, files: File[]): Promise<Map<strin
     body: form,
   });
   if (!res.ok) throw new Error('Image upload failed');
-  const arr: { originalName: string; url: string }[] = await res.json();
+  const arr: { fileName?: string; originalName?: string; url: string }[] = await res.json();
   const map = new Map<string, string>();
-  for (const { originalName, url } of arr) {
+  for (const item of arr) {
+    const originalName = item.fileName || item.originalName || '';
+    const { url } = item;
+    if (!originalName) continue;
     map.set(originalName.toLowerCase(), `${API_BASE}${url}`);
     // also map without extension for fallback
     map.set(originalName.toLowerCase().replace(/\.[^.]+$/, ''), `${API_BASE}${url}`);
