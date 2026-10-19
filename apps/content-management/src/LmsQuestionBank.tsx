@@ -855,7 +855,7 @@ function StatsView({ chapterId, questions, topics, refreshKey }: { chapterId: st
       .then(s => setLastSaved(s?.generatedAt ?? null))
       .catch(() => {});
     lms<any>(`/catalogue/chapters/${chapterId}/assessment`)
-      .then(c => setCycleConfig(c))
+      .then(c => setCycleConfig(c?.cycleTest || c))
       .catch(() => {});
   }, [chapterId, refreshKey]);
 
