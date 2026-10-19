@@ -37,6 +37,7 @@ export class PlatformController {
   @Put('subjects/:id/units/:unitId/semester-test') updateSemesterTest(@Param('id') id:string,@Param('unitId') unitId:string,@Body() body:any){return this.platform.updateSemesterTest(id,unitId,body)}
   @Patch('subjects/:id/status/:status') reviewSubject(@Param('id') id:string,@Param('status') status:string){return this.platform.reviewSubject(id,status)}
   @Get('offerings') listOfferings(){return this.platform.listOfferings()}
+  @Get('admin/dashboard') adminDashboard(){return this.platform.adminDashboard()}
   @Get('offerings/:id') getOffering(@Param('id') id:string){return this.platform.getOffering(id)}
   @Post('offerings') createOffering(@Body() body:any){return this.platform.createOffering(body)}
   @Patch('offerings/:id') updateOffering(@Param('id') id:string,@Body() body:any){return this.platform.updateOffering(id,body)}

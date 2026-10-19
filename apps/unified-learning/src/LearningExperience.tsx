@@ -5,7 +5,7 @@ import './navigation-cleanup.css';
 
 const API='http://localhost:3001';
 const statusKey=(chapterId:string)=>`edullm-progress:${chapterId}`;
-type Progress={opened:string[];pageCompleted:string[];completed:string[];resourcesOpened:string[];verified:boolean;mastery:Record<string,'green'|'yellow'|'red'>;cykRevealed:string[]};
+type Progress={opened:string[];pageCompleted:string[];completed:string[];resourcesOpened:string[];verified:boolean;mastery:Record<string,'green'|'yellow'|'red'>;cykRevealed:string[];cycleStartedAt?:string;cycleSubmittedAt?:string;cycleAttempt?:number};
 type CykState='green'|'yellow'|'grey';
 const blank=():Progress=>({opened:[],pageCompleted:[],completed:[],resourcesOpened:[],verified:false,mastery:{},cykRevealed:[]});
 const readProgress=(id:string):Progress=>{try{return {...blank(),...JSON.parse(localStorage.getItem(statusKey(id))||'{}')}}catch{return blank()}};
@@ -38,7 +38,6 @@ export function ChapterLearning({subject,chapter,back,externalPractice}:{subject
     return Math.max(1,end);
   },[chapter.id]);
   const [cur,setCur]=useState(()=>{if(!pages.length)return 0;const lastId=[...initial.opened].reverse().find(id=>pages.some((p:any)=>p.id===id));return lastId?Math.max(0,pages.findIndex((p:any)=>p.id===lastId)):0;});
-  const [maxUnlocked,setMaxUnlocked]=useState(initMax);
   const [extra,setExtra]=useState<'smart'|'graph'|'practice'|'completion'|null>(null);
   const [practiceIndex,setPracticeIndex]=useState(0);
   const [practiceFilter,setPracticeFilter]=useState<'all'|'type1'|'type2'|'tagged'>('all');
@@ -84,7 +83,6 @@ export function ChapterLearning({subject,chapter,back,externalPractice}:{subject
     }
     if(isLast){setExtra(sn?'smart':kg?'graph':effectiveCp?'practice':'completion');return;}
     const ni=cur+1;
-    setMaxUnlocked(u=>Math.max(u,ni+1));
     setCur(ni);
   };
   const goPrev=()=>{if(extra){setExtra(null);return;}if(cur>0)setCur(cur-1);};
@@ -109,7 +107,7 @@ export function ChapterLearning({subject,chapter,back,externalPractice}:{subject
             <span>Concepts</span>
             <strong>⌄</strong>
           </summary>
-          <TreeNavigation groups={groups} pages={pages} progress={progress} cykStatus={cykStatus} cur={extra?-1:cur} maxUnlocked={maxUnlocked} navigate={(idx)=>{if(idx<maxUnlocked){setCur(idx);setExtra(null);}}} activeRef={activeNavRef}/>
+          <TreeNavigation groups={groups} pages={pages} progress={progress} cykStatus={cykStatus} cur={extra?-1:cur} navigate={(idx)=>{setCur(idx);setExtra(null);}} activeRef={activeNavRef}/>
           {sn&&<button className="sap-sf-item chapter-resource-index" onClick={()=>{setExtra('smart');setProgress(p=>({...p,resourcesOpened:[...new Set([...p.resourcesOpened,'smart'])]}))}}><StatusBox state={progress.resourcesOpened.includes('smart')?'blue':'empty'}/><span>Smart Notes</span></button>}
           {kg&&<button className="sap-sf-item chapter-resource-index" onClick={()=>{setExtra('graph');setProgress(p=>({...p,resourcesOpened:[...new Set([...p.resourcesOpened,'graph'])]}))}}><StatusBox state={progress.resourcesOpened.includes('graph')?'blue':'empty'}/><span>Knowledge Graph</span></button>}
         </details>
@@ -149,18 +147,17 @@ export function ChapterLearning({subject,chapter,back,externalPractice}:{subject
         {extra==='smart'&&sn&&<SmartNotesPage notes={sn} node={()=>{}} next={()=>setExtra(kg?'graph':effectiveCp?'practice':'completion')}/>}
         {extra==='graph'&&kg&&<KnowledgeGraphPage graph={kg} node={()=>{}} next={()=>setExtra(effectiveCp?'practice':'completion')}/>}
         {extra==='practice'&&effectiveCp&&<ChapterPractice practice={effectiveCp} mediaFor={mediaFor} node={()=>{}} continueToCompletion={()=>setExtra('completion')} index={practiceIndex} setIndex={setPracticeIndex} filter={practiceFilter} tagged={tagged} toggleTag={toggleTag}/>}
-        {extra==='completion'&&<ChapterCompletion chapter={chapter} verified={progress.verified} verify={verify} node={()=>{}}/>}
+        {extra==='completion'&&<ChapterCompletion chapter={chapter} verified={progress.verified} progress={progress} verify={verify} start={()=>setProgress(p=>({...p,cycleStartedAt:new Date().toISOString(),cycleSubmittedAt:undefined,cycleAttempt:(p.cycleAttempt||0)+1}))} submit={()=>setProgress(p=>({...p,cycleStartedAt:undefined,cycleSubmittedAt:new Date().toISOString()}))} node={()=>{}}/>}
         {extra&&<div className="pbp-nav"><button className="pbp-prev" onClick={goPrev}>← Back to Chapter</button><span/><span/></div>}
       </main>
     </div>
   </div>
 }
 
-function TreeNavigation({groups,pages,progress,cykStatus,cur,maxUnlocked,navigate,activeRef}:{groups:any[];pages:any[];progress:Progress;cykStatus:Record<string,CykState>;cur:number;maxUnlocked:number;navigate:(idx:number)=>void;activeRef:React.MutableRefObject<HTMLElement|null>}){
+function TreeNavigation({groups,pages,progress,cykStatus,cur,navigate,activeRef}:{groups:any[];pages:any[];progress:Progress;cykStatus:Record<string,CykState>;cur:number;navigate:(idx:number)=>void;activeRef:React.MutableRefObject<HTMLElement|null>}){
   const curPage=pages[cur];
   return <div className="tree-navigation">{groups.map(group=>{
     const firstIdx=pages.findIndex((p:any)=>p.id===group.pages[0].id);
-    const locked=firstIdx>=maxUnlocked;
     const isTopicActive=curPage?.topicId===group.id;
     const done=group.pages.filter((p:any)=>progress.pageCompleted.includes(p.id)).length;
     const pct=Math.round(done/Math.max(group.pages.length,1)*100);
@@ -168,22 +165,21 @@ function TreeNavigation({groups,pages,progress,cykStatus,cur,maxUnlocked,navigat
     const state=complete?(progress.mastery[group.id]||'blue'):done||group.pages.some((p:any)=>progress.opened.includes(p.id))?'active':'empty';
     const subtopics=group.subtopics.filter((s:any)=>!s.introduction);
     return <details open={isTopicActive||complete} key={group.id}>
-      <summary className={`tree-summary${locked?' locked':''}${isTopicActive?' topic-active':''}`} onClick={e=>{if(locked){e.preventDefault();return;}navigate(firstIdx);}}>
+      <summary className={`tree-summary${isTopicActive?' topic-active':''}`} onClick={()=>navigate(firstIdx)}>
         <StatusBox state={state} percent={pct}/>
         <span ref={isTopicActive&&!subtopics.length?(node=>{activeRef.current=node;}):undefined}>{group.title}</span>
-        <strong>{locked?'🔒':'⌄'}</strong>
+        <strong>⌄</strong>
       </summary>
       <div>{subtopics.map((sub:any)=>{
         const idx=pages.findIndex((p:any)=>p.id===sub.pages[0].id);
-        const subLocked=idx>=maxUnlocked;
         const isActive=sub.pages.some((p:any)=>p.id===curPage?.id);
         const subDone=sub.pages.filter((p:any)=>progress.pageCompleted.includes(p.id)).length;
         const subState=subDone===sub.pages.length?'blue':subDone||sub.pages.some((p:any)=>progress.opened.includes(p.id))?'active':'empty';
-        return <button key={sub.id} ref={isActive?(node=>{activeRef.current=node;}):undefined} disabled={subLocked} className={`sub-topic-btn${isActive?' sub-active':''}`} onClick={()=>navigate(idx)}>
+        return <button key={sub.id} ref={isActive?(node=>{activeRef.current=node;}):undefined} className={`sub-topic-btn${isActive?' sub-active':''}`} onClick={()=>navigate(idx)}>
           <StatusBox state={subState} percent={Math.round(subDone/Math.max(sub.pages.length,1)*100)}/>
           <span>{sub.title}</span>
         </button>;
-      })}{group.pages.some((p:any)=>p.knowledgeCheck)&&<button className="cyk-index" disabled={locked} onClick={()=>{const ci=pages.findIndex((p:any)=>p.topicId===group.id&&p.knowledgeCheck);if(ci>=0)navigate(ci);}}><StatusBox state={cykStatus[group.id]||'empty'}/><span>Check Your Knowledge</span></button>}</div>
+      })}{group.pages.some((p:any)=>p.knowledgeCheck)&&<button className="cyk-index" onClick={()=>{const ci=pages.findIndex((p:any)=>p.topicId===group.id&&p.knowledgeCheck);if(ci>=0)navigate(ci);}}><StatusBox state={cykStatus[group.id]||'empty'}/><span>Check Your Knowledge</span></button>}</div>
     </details>;
   })}</div>;
 }
@@ -232,11 +228,11 @@ function PracticeType1({question,number,mediaFor,tagged=false,onToggleTag}:{ques
 
 function PracticeType2({question,number,tagged=false,onToggleTag}:{question:any;number:number;tagged?:boolean;onToggleTag?:()=>void}){const [answers,setAnswers]=useState<Record<string,string>>({}),[checked,setChecked]=useState(false);const choose=(stepId:string,option:string)=>{if(!checked)setAnswers(current=>({...current,[stepId]:option}))};const drop=(event:DragEvent<HTMLDivElement>,stepId:string)=>{event.preventDefault();try{const item=JSON.parse(event.dataTransfer.getData('text/plain'));if(item.stepId===stepId)choose(stepId,item.option)}catch{}};const retake=()=>{setAnswers({});setChecked(false)};const overallExp=question.finalAnswer||question.explanation;return <article className="practice-web-question type2-web"><h2 className="practice-main-question">{question.question}</h2><p className="practice-subtitle">Choose one answer per step to build the complete response.</p>{question.steps.map((step:any,index:number)=>{const answer=answers[step.id],correct=checked&&answer===step.answer;return <section className="practice-step" key={step.id}><b>{index+1}. {step.prompt}</b><div className="drag-choice-tray">{jumble(step.options||[],step.id).map((option:string)=><button type="button" draggable={!checked} disabled={checked} className={[answers[step.id]===option?'selected':'',checked&&option===step.answer?'opt-correct':'',checked&&answers[step.id]===option&&option!==step.answer?'opt-wrong':''].filter(Boolean).join(' ')} onDragStart={event=>event.dataTransfer.setData('text/plain',JSON.stringify({stepId:step.id,option}))} onClick={()=>choose(step.id,option)} key={option}><i>⠿</i>{option}</button>)}</div>{checked&&<div className={correct?'step-inline-result correct':'step-inline-result wrong'}><b>{correct?'✓ Correct':'✕ Incorrect'}</b>{!correct&&<span> — correct: <b>{step.answer}</b></span>}{step.explanation&&<div className="step-inline-exp" dangerouslySetInnerHTML={{__html:step.explanation}}/>}</div>}</section>})}{!checked&&<div className="practice-action-row"><button className="type2-check-btn" onClick={()=>setChecked(true)}>Check answers</button>{onToggleTag&&<button className={`mark-revision-btn${tagged?' active':''}`} onClick={onToggleTag}>{tagged?'★ Saved for revision':'☆ Save for revision'}</button>}</div>}{checked&&<>{overallExp&&<div className="practice-feedback correct type2-overall-exp"><b>Explanation</b><div className="explanation-html" dangerouslySetInnerHTML={{__html:overallExp}}/></div>}<div className="practice-action-row"><button className="retake-practice" onClick={retake}>↻ Retake</button>{onToggleTag&&<button className={`mark-revision-btn${tagged?' active':''}`} onClick={onToggleTag}>{tagged?'★ Saved for revision':'☆ Save for revision'}</button>}</div></>}</article>}
 
-function ChapterCompletion({chapter,verified,verify,node}:{chapter:any;verified:boolean;verify:()=>void;node:(value:HTMLElement|null)=>void}){const [instructions,setInstructions]=useState(false),test=chapter.cycleTest;return <article className="chapter-completion-page" ref={node}><small>CHAPTER COMPLETION</small><h1>Ready for the Cycle Test?</h1><div><h2>CONFIDENCE CHECK</h2><p>You may learn from this app or any other trusted material. Declare when you feel ready to be assessed on <b>{chapter.title}</b>.</p></div><p>This declaration unlocks the Cycle Test. It does not require you to open every Topic or Subtopic.</p>
+function ChapterCompletion({chapter,verified,progress,verify,start,submit,node}:{chapter:any;verified:boolean;progress:Progress;verify:()=>void;start:()=>void;submit:()=>void;node:(value:HTMLElement|null)=>void}){const [instructions,setInstructions]=useState(false),test=chapter.cycleTest,started=!!progress.cycleStartedAt,submitted=progress.cycleSubmittedAt?new Date(progress.cycleSubmittedAt).getTime():0,retakeDays=Number(test?.retakeAfterDays??test?.lockingDurationDays??30),cooldown=!!submitted&&Date.now()<submitted+retakeDays*86400000,forms=test?.forms||[],formNumber=((progress.cycleAttempt||0)-1)%Math.max(forms.length,1)+1,form=forms[formNumber-1];return <article className="chapter-completion-page" ref={node}><small>CHAPTER COMPLETION</small><h1>Ready for the Cycle Test?</h1><div><h2>CONFIDENCE CHECK</h2><p>You may learn from this app or any other trusted material. Declare when you feel ready to be assessed on <b>{chapter.title}</b>.</p></div><p>Topics remain open at all times. Only the Cycle Test is controlled by completion verification and its configured retake duration.</p>
 <button disabled={verified} onClick={verify}>{verified?'✓ Verify - Chapter Completed':'Verify - Chapter Completed'}</button>
 <section id={`cycle-test-${chapter.id}`} className={`chapter-cycle-test ${verified&&test?'unlocked':'locked'}`}><small>NEXT · CYCLE TEST</small><h2>{test?.title||'Cycle Test'}</h2>{test?<><div className="cycle-test-facts"><span><b>{test.totalMarks}</b> marks</span><span><b>{test.durationMinutes}</b> minutes</span><span><b>{test.sections?.length||0}</b> sections</span><span>Results Available in <b>{test.resultDelayHours??24} Hours</b></span></div>
-{!verified&&<p><b>Unlock criteria:</b> Open Chapter Completion and select "Verify - Chapter Completed." Reading every Topic is recommended but not compulsory.</p>}
-</>:<p>This Cycle Test has not yet been configured by the Teacher.</p>}<button disabled={!verified||!test} onClick={()=>setInstructions(true)}>{verified&&test?'Review instructions and start →':test?'🔒 Confidence declaration required to unlock':'Cycle Test not configured'}</button>{instructions&&test&&<section className="cycle-instructions"><h3>Before you begin</h3><ul><li>The timer starts after final confirmation and does not pause.</li><li>Closing the browser or losing the network does not stop the timer.</li><li>Reconnect and resume the same active attempt before time expires.</li><li>At timeout, the latest synchronized answers are submitted automatically.</li><li>Results Available in {test.resultDelayHours??24} Hours.</li></ul><button onClick={()=>window.alert('Timed Cycle Test delivery is the next assessment-runtime implementation.')}>I understand — Start Cycle Test</button></section>}</section></article>}
+{!verified&&<p><b>Unlock criteria:</b> Select "Verify - Chapter Completed."</p>}{verified&&form&&<p><b>Available form:</b> Form {formNumber} · {form.sections?.reduce((n:number,s:any)=>n+(s.questionIds?.length||0),0)} questions</p>}{cooldown&&<p><b>Retake locked:</b> available after {new Date(submitted+retakeDays*86400000).toLocaleString()}.</p>}
+</>:<p>This Cycle Test has not yet been configured by the Teacher.</p>}<button disabled={!verified||!test||cooldown||started} onClick={()=>setInstructions(true)}>{started?'Cycle Test in progress':cooldown?'Cycle Test locked during retake period':verified&&test?'Review instructions and start →':test?'🔒 Confidence declaration required to unlock':'Cycle Test not configured'}</button>{started&&<button onClick={submit}>Submit Cycle Test</button>}{instructions&&test&&!started&&<section className="cycle-instructions"><h3>Before you begin · Form {formNumber}</h3><ul><li>The timer starts after final confirmation and does not pause.</li><li>Duration: {test.durationMinutes} minutes.</li><li>Submitting manually or reaching the time limit locks this test for {retakeDays} day(s).</li></ul><button onClick={()=>{setInstructions(false);start()}}>I understand — Start Cycle Test</button></section>}</section></article>}
 function StatusLegend(){return <div className="sap-status-legend"><span><StatusBox state="empty"/>Not started</span><span><StatusBox state="blue"/>Completed</span><span><StatusBox state="green"/>Strong</span><span><StatusBox state="yellow"/>Developing</span><span><StatusBox state="red"/>Focus</span></div>}
 function StatusBox({state,percent=0}:{state:string;percent?:number}){return <i className={`sap-status ${state}`} style={state==='active'&&percent>0?{background:`conic-gradient(var(--sap-bright) ${percent}%,#d6dde3 0)`}:undefined} aria-label={state}>{state!=='empty'&&state!=='active'?'✓':''}</i>}
 function groupTopics(pages:any[]){return pages.reduce((groups:any[],page:any)=>{let group=groups.find(item=>item.id===page.topicId);if(!group){group={id:page.topicId,title:page.topicTitle,pages:[],subtopics:[]};groups.push(group)}group.pages.push(page);let subtopic=group.subtopics.find((item:any)=>item.id===page.subtopicId);if(!subtopic){subtopic={id:page.subtopicId,title:page.subtopicTitle,introduction:page.pageType==='introduction'||page.syllabusCode==='INTRO',pages:[]};group.subtopics.push(subtopic)}subtopic.pages.push(page);return groups},[])}

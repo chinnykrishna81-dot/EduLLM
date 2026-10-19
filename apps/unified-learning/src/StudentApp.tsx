@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import './student-app.css';
-import { ChapterLearning } from '../../student-learning/src/LearningExperience';
+import { ChapterLearning } from './LearningExperience';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

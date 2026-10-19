@@ -5,15 +5,14 @@
   "workspaces": [
     "apps/api",
     "apps/content-management",
-    "apps/student-learning",
     "apps/unified-learning",
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently -n api,cms,student -c green,blue,magenta \"npm run dev -w @edullm/api\" \"npm run dev -w @edullm/content-management\" \"npm run dev -w @edullm/student-learning\"",
+    "dev": "concurrently -n api,cms,student -c green,blue,magenta \"npm run dev -w @edullm/api\" \"npm run dev -w @edullm/content-management\" \"npm run dev -w @edullm/unified-learning\"",
     "dev:cms": "concurrently -n api,cms -c green,blue \"npm run dev -w @edullm/api\" \"npm run dev -w @edullm/content-management\"",
-    "build": "npm run build -w @edullm/api && npm run build -w @edullm/content-management && npm run build -w @edullm/student-learning",
-    "test": "npm run test -w @edullm/content-schema && npm run test -w @edullm/api && npm run test -w @edullm/content-management && npm run test -w @edullm/student-learning",
+    "build": "npm run build -w @edullm/api && npm run build -w @edullm/content-management && npm run build -w @edullm/unified-learning",
+    "test": "npm run test -w @edullm/content-schema && npm run test -w @edullm/api && npm run test -w @edullm/content-management && npm run test -w @edullm/unified-learning",
     "db:setup": "npm run db:setup -w @edullm/api",
     "db:seed": "tsx scripts/seed-platform-demo.ts",
     "start": "npm run start -w @edullm/api"

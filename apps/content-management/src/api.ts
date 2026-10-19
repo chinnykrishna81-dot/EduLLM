@@ -181,6 +181,7 @@ export const api = {
 };
 
 export const platformApi = {
+  adminDashboard: () => request<any>('/admin/dashboard'),
   chapters: () => request<LibraryChapter[]>('/library/chapters'),
   chapterMedia: (id: string) =>
     request<

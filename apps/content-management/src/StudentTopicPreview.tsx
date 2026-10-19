@@ -3,7 +3,7 @@ import { API, platformApi, type LibraryChapter } from './api';
 import './birds-eye.css';
 import './completion-slides.css';
 import './progressive-preview.css';
-import {ChapterLearning} from '../../student-learning/src/LearningExperience';
+import {ChapterLearning} from '../../unified-learning/src/LearningExperience';
 
 export function StudentTopicPreview({chapter,exit}:{chapter:LibraryChapter;exit:()=>void}){
   const subject={title:chapter.subjectTags?.[0]||'Science',board:chapter.boardTags?.[0]||'',grade:chapter.gradeTags?.[0]||''};
