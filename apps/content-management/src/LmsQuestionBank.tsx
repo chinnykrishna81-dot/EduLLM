@@ -11,7 +11,7 @@ async function lms<T>(path: string, init: RequestInit = {}): Promise<T> {
   let unifiedPath = path;
   if (match) {
     const [, chapterId, rest] = match;
-    if (rest === '/questions') unifiedPath = `/question-bank/chapters/${chapterId}`;
+    if (rest === '/questions') unifiedPath = `/question-bank/chapters/${chapterId}${init.method === 'POST' ? '/questions' : ''}`;
     else if (rest === '/questions/stats') unifiedPath = `/question-bank/chapters/${chapterId}/statistics`;
     else if (rest === '/questions/practice') unifiedPath = `/question-bank/chapters/${chapterId}/practice`;
     else if (rest === '/topics') unifiedPath = `/question-bank/chapters/${chapterId}/topics`;
@@ -271,6 +271,7 @@ function ImportJsonModal({
       );
 
       let ok = 0, fail = 0;
+      const failures: string[] = [];
       for (let i = 0; i < qs.length; i++) {
         setProgress(`Importing question ${i + 1} / ${qs.length}…`);
         const q = qs[i];
@@ -279,10 +280,10 @@ function ImportJsonModal({
         try {
           await lms(`/chapters/${chapterId}/questions`, { method: 'POST', body: JSON.stringify(payload) });
           ok++;
-        } catch { fail++; }
+        } catch (error: any) { fail++; if (failures.length < 3) failures.push(`Q${i + 1}: ${error?.message || 'Request failed'}`); }
       }
 
-      setProgress(`Done. ${ok} imported, ${fail} failed.`);
+      setProgress(`Done. ${ok} imported, ${fail} failed.${failures.length ? ` ${failures.join(' · ')}` : ''}`);
       setPhase('done');
       onDone();
     } catch (e: any) {
