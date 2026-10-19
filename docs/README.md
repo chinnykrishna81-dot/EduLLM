@@ -42,6 +42,6 @@ Run `npm run db:seed` once while the API is running to load the approved reusabl
 
 To load ChatGPT content, open **Chapter Library → Import Chapter Package**. You can paste JSON, select a `.json` file, load/download the working sample, validate without saving, and import a valid package as Draft. Use the [ChatGPT Master Chapter Generation Protocol](docs/CHATGPT_CHAPTER_GENERATION_PROTOCOL.md) to generate one chapter at a time.
 
-Product context remains in [PROJECT_HANDOFF.md](PROJECT_HANDOFF.md), [MVP scope](docs/MVP_SCOPE.md), and [decisions](docs/DECISIONS.md).
+Product context remains in [PROJECT_HANDOFF.md](PROJECT_HANDOFF.md), [MVP scope](MVP_SCOPE.md), and [decisions](DECISIONS.md).
 
 The authoritative authoring and publishing workflow is [Content-to-Course Process](docs/CONTENT_TO_COURSE_PROCESS.md). The teaching and test rules are in [Learning and Assessment Model](docs/LEARNING_AND_ASSESSMENT_MODEL.md), and the proposed two-application design, modules, roles, and personas are in [Proposed Architecture](docs/PROPOSED_ARCHITECTURE.md). Legacy course-first tables remain temporarily to preserve the earlier sample while content is migrated.

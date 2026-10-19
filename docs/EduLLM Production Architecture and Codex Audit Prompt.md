@@ -323,7 +323,7 @@ AUTHORITATIVE INPUTS
 
 Read:
 - docs/PRODUCTION_ARCHITECTURE.md
-- PROJECT_HANDOFF.md
+- docs/PROJECT_HANDOFF.md
 - repository ADRs and documentation
 - database schema and migrations
 - API specifications and tests
