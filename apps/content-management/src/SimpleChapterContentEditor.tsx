@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { platformApi, type LibraryChapter } from './api';
+import { browserId } from './browserId';
 import './simple-chapter-editor.css';
 
 interface Topic { id: string; title: string; html: string }
 
-const uid = () => `topic-${crypto.randomUUID()}`;
+const uid = () => `topic-${browserId()}`;
 
 function initTopics(chapter: LibraryChapter): Topic[] {
   const raw: any[] = chapter.content?.topics ?? [];

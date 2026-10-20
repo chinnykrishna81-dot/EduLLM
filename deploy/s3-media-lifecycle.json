@@ -1,0 +1,11 @@
+{
+  "Rules": [
+    {
+      "ID": "CleanIncompleteUploads",
+      "Status": "Enabled",
+      "Filter": { "Prefix": "" },
+      "AbortIncompleteMultipartUpload": { "DaysAfterInitiation": 7 },
+      "NoncurrentVersionExpiration": { "NoncurrentDays": 30, "NewerNoncurrentVersions": 2 }
+    }
+  ]
+}

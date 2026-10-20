@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import './student-app.css';
 import { ChapterLearning } from './LearningExperience';
+import { shuffleForStudent } from './studentShuffle';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -27,7 +28,7 @@ interface Question { id: string; type: string; format: string; question: string;
 
 // ── API helper ────────────────────────────────────────────────────────────────
 
-const API = 'http://localhost:3001/api';
+const API = import.meta.env.VITE_API_BASE ?? 'http://localhost:3001/api';
 const STORAGE_KEY = 'edullm_student_token';
 
 async function api<T>(path: string, init: RequestInit = {}, authed = true): Promise<T> {
@@ -73,7 +74,7 @@ function AuthModal({ mode, onDone, onClose }: { mode: 'login' | 'register'; onDo
           <button className={tab === 'login' ? 'active' : ''} onClick={() => setTab('login')}>Sign In</button>
           <button className={tab === 'register' ? 'active' : ''} onClick={() => setTab('register')}>Register</button>
         </div>
-        <div className="sa-social-login"><button type="button" onClick={()=>{if(!privacyConsent){setErr('Please accept the privacy notice before continuing.');return}window.location.href='http://localhost:3001/api/auth/google'}}>G&nbsp; Continue with Google</button><button type="button" onClick={()=>window.alert('Facebook sign-in is not configured yet.')}>f&nbsp; Continue with Facebook</button></div><div className="sa-or"><span>or use email</span></div>
+        <div className="sa-social-login"><button type="button" onClick={()=>{if(!privacyConsent){setErr('Please accept the privacy notice before continuing.');return}window.location.href=`${API}/auth/google`}}>G&nbsp; Continue with Google</button><button type="button" onClick={()=>window.alert('Facebook sign-in is not configured yet.')}>f&nbsp; Continue with Facebook</button></div><div className="sa-or"><span>or use email</span></div>
         {tab === 'register' && (
           <label className="sa-field">
             <span>Full Name</span>
@@ -258,14 +259,7 @@ function Dashboard({ user, onOpen }: { user: User; onOpen: (c: Course) => void }
 // ── Practice helpers ──────────────────────────────────────────────────────────
 
 function jumble(arr: string[], seed: string): string[] {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
-    let hash = 0;
-    for (let k = 0; k < seed.length; k++) hash = (hash * 31 + seed.charCodeAt(k)) & 0xffffffff;
-    const j = Math.abs(hash + i * 2654435769) % (i + 1);
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
+  return shuffleForStudent(arr, seed);
 }
 
 function normalizeAns(v: string) { return String(v || '').trim().toLowerCase(); }
@@ -338,7 +332,7 @@ function PracticeType2Student({ question }: { question: Question }) {
         <div key={step.id} className="pv-step">
           <div className="pv-step-header"><b>{i + 1}.</b><span>{step.prompt}</span></div>
           <div className="pv-step-choices">
-            {(step.options || []).map(opt => (
+            {jumble(step.options || [], step.id).map(opt => (
               <button key={opt} disabled={submitted}
                 className={`pv-step-choice${answers[step.id] === opt ? ' selected' : ''}${submitted && opt === step.answer ? ' correct' : submitted && answers[step.id] === opt && opt !== step.answer ? ' wrong' : ''}`}
                 onClick={() => choose(step.id, opt)}>{opt}</button>
@@ -566,7 +560,6 @@ function CourseViewer({ course, onBack }: { course: Course; onBack: () => void }
   const [selChapter, setSelChapter] = useState<Chapter | null>(null);
   const [loadingCh, setLoadingCh]   = useState(false);
   const [err, setErr]               = useState('');
-  const [assessment, setAssessment] = useState<any>(null);
 
   useEffect(() => {
     if (!selSubject) return;
@@ -577,17 +570,8 @@ function CourseViewer({ course, onBack }: { course: Course; onBack: () => void }
       .finally(() => setLoadingCh(false));
   }, [selSubject?.id]);
 
-  useEffect(() => {
-    if (!selChapter) return;
-    setAssessment(null);
-    api<any>(`/catalogue/chapters/${selChapter.id}/assessment`).then(setAssessment).catch(e => setErr(e.message));
-  }, [selChapter?.id]);
-
   if (selChapter && selSubject) {
-    if (!assessment) return <div className="sa-loading" style={{padding:48}}>Loading chapter practice…</div>;
-    const questions = assessment.questions || [];
-    const chapterForReader = {...selChapter, cycleTest: assessment.cycleTest || selChapter.cycleTest};
-    return <ChapterLearning subject={{ title: selSubject.name, board: selSubject.board, grade: selSubject.grade }} chapter={chapterForReader} externalPractice={{ title:'Chapter Practice', instructions:'Practice questions · no marks · immediate feedback', type1Questions:questions.filter((q:any) => q.type !== 'type2'), type2Questions:questions.filter((q:any) => q.type === 'type2') }} back={() => setSelChapter(null)} />;
+    return <ChapterLearning subject={{ title: selSubject.name, board: selSubject.board, grade: selSubject.grade }} chapter={selChapter} back={() => setSelChapter(null)} />;
   }
 
   return (

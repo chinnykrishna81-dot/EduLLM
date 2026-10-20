@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import {platformApi} from './api';
+import {API,platformApi} from './api';
 import {RichTextEditor} from './RichTextEditor';
 import './assessment-builder.css';
 
@@ -244,11 +244,9 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
 
   // ── Form proposal algorithm ────────────────────────────────────────────────
   const proposeForms = () => {
-    // Per-section usage count: sectionId → (questionId → # times used across forms)
-    // Keeps each section's cycling independent so MCQ exhausting its pool
-    // doesn't contaminate the Long-Answer pool.
-    const sectionCounts = new Map<string, Map<string, number>>();
-    data.sections.forEach((s: any) => sectionCounts.set(s.id, new Map()));
+    // Track usage across the complete test. Type 2 questions can qualify for
+    // multiple sections, so section-local counts can leave questions unused.
+    const usageCounts = new Map<string, number>();
 
     const isPractice = (q: any) => (q.usage || []).includes('chapter_practice');
 
@@ -257,16 +255,20 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
     //   2. Unused in this section (count=0) AND is a practice question → practice is secondary pool
     //   3. Already used in this section (count>0) → repeat only as last resort
     //   Within each tier: hard → medium → easy
-    const sortForSection = (pool: any[], sCounts: Map<string, number>) =>
+    const sortForSection = (pool: any[]) =>
       [...pool].sort((a, b) => {
-        const ca = sCounts.get(a.id) || 0, cb = sCounts.get(b.id) || 0;
-        if (ca !== cb) return ca - cb;                    // fewer uses in this section first
+        const ca = usageCounts.get(a.id) || 0, cb = usageCounts.get(b.id) || 0;
+        const ua = ca === 0 ? 0 : 1, ub = cb === 0 ? 0 : 1;
+        if (ua !== ub) return ua - ub;                    // consume every unused question first
         const pa = isPractice(a) ? 1 : 0, pb = isPractice(b) ? 1 : 0;
-        if (pa !== pb) return pa - pb;                    // pure-unused before practice-unused
-        return (DIFF_WEIGHT[a.difficulty || 'medium'] ?? 1) - (DIFF_WEIGHT[b.difficulty || 'medium'] ?? 1);
+        if (ua === 0 && pa !== pb) return pa - pb;
+        const difficulty = (DIFF_WEIGHT[a.difficulty || 'medium'] ?? 1) - (DIFF_WEIGHT[b.difficulty || 'medium'] ?? 1);
+        if (difficulty !== 0) return difficulty;
+        if (ca !== cb) return ca - cb;
+        return String(a.id).localeCompare(String(b.id));
       });
 
-    const pickFrom = (sorted: any[], need: number, usedInForm: Set<string>, groupsInForm: Set<string>, sCounts: Map<string, number>) => {
+    const pickFrom = (sorted: any[], need: number, usedInForm: Set<string>, groupsInForm: Set<string>) => {
       const chosen: any[] = [];
       for (const q of sorted) {
         if (chosen.length >= need) break;
@@ -275,7 +277,7 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
         chosen.push(q);
         usedInForm.add(q.id);
         groupsInForm.add(group);
-        sCounts.set(q.id, (sCounts.get(q.id) || 0) + 1);
+        usageCounts.set(q.id, (usageCounts.get(q.id) || 0) + 1);
       }
       return chosen;
     };
@@ -285,11 +287,10 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
       const groupsInForm = new Set<string>();
 
       const sections = data.sections.map((section: any) => {
-        const sCounts = sectionCounts.get(section.id)!;
         const pool    = eligible(section);
         const needed  = Number(section.questionsPresented);
-        const sorted  = sortForSection(pool, sCounts);
-        const chosen  = pickFrom(sorted, needed, usedInForm, groupsInForm, sCounts);
+        const sorted  = sortForSection(pool);
+        const chosen  = pickFrom(sorted, needed, usedInForm, groupsInForm);
 
         return {
           sectionId:        section.id,
@@ -303,13 +304,13 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
 
     // Build summary stats
     const totalEligible = new Set(data.sections.flatMap((s: any) => eligible(s).map((q: any) => q.id))).size;
-    const allUsed = new Set<string>();
-    sectionCounts.forEach(m => m.forEach((_, id) => allUsed.add(id)));
+    const allUsed = new Set(usageCounts.keys());
     const practiceUsed = [...allUsed].filter(id => {
       const q = data.questionBank.find((q: any) => q.id === id);
       return q && isPractice(q);
     }).length;
     const unusedCount = totalEligible - allUsed.size;
+    const sectionCounts = new Map([['All eligible questions', usageCounts]]);
 
     // Per-section repeat info
     const repeatLines: string[] = [];
@@ -574,7 +575,7 @@ function MediaChooser({title,media,value,change}:{title:string;media:any[];value
   return <details className="assessment-media-chooser">
     <summary>{title} <span>{value.length} selected</span></summary>
     {media.length
-      ?<div>{media.map(item=><label key={item.fileName}><input type="checkbox" checked={value.includes(item.fileName)} onChange={()=>change(value.includes(item.fileName)?value.filter(n=>n!==item.fileName):[...value,item.fileName])}/><img src={`http://localhost:3001${item.url}`} alt={item.altText}/><span>{item.fileName}</span></label>)}</div>
+      ?<div>{media.map(item=><label key={item.fileName}><input type="checkbox" checked={value.includes(item.fileName)} onChange={()=>change(value.includes(item.fileName)?value.filter(n=>n!==item.fileName):[...value,item.fileName])}/><img src={`${API}${item.url}`} alt={item.altText}/><span>{item.fileName}</span></label>)}</div>
       :<p>No images in this Chapter library.</p>}
   </details>;
 }

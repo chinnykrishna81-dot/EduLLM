@@ -2,6 +2,9 @@
   "name": "edullm",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "workspaces": [
     "apps/api",
     "apps/content-management",
@@ -11,7 +14,7 @@
   "scripts": {
     "dev": "concurrently -n api,cms,student -c green,blue,magenta \"npm run dev -w @edullm/api\" \"npm run dev -w @edullm/content-management\" \"npm run dev -w @edullm/unified-learning\"",
     "dev:cms": "concurrently -n api,cms -c green,blue \"npm run dev -w @edullm/api\" \"npm run dev -w @edullm/content-management\"",
-    "build": "npm run build -w @edullm/api && npm run build -w @edullm/content-management && npm run build -w @edullm/unified-learning",
+    "build": "npm run build -w @edullm/content-schema && npm run build -w @edullm/api && npm run build -w @edullm/content-management && npm run build -w @edullm/unified-learning",
     "test": "npm run test -w @edullm/content-schema && npm run test -w @edullm/api && npm run test -w @edullm/content-management && npm run test -w @edullm/unified-learning",
     "db:setup": "npm run db:setup -w @edullm/api",
     "db:seed": "tsx scripts/seed-platform-demo.ts",

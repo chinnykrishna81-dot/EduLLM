@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node.js 20 or newer
+- Node.js 20.19 or newer
 - npm
 - PostgreSQL running locally (Postgres.app is suitable on macOS)
 
@@ -19,7 +19,9 @@ npm run db:setup
 npm run dev
 ```
 
-Open Content Operations at <http://localhost:5174> and Student Learning at <http://localhost:5175>. The API runs at <http://localhost:3001>, with interactive documentation at <http://localhost:3001/api/docs>.
+Before running `db:setup`, replace `YOUR_LOCAL_POSTGRES_PASSWORD` in `.env` with the password for your local PostgreSQL user. Keep `.env` private; it is ignored by Git.
+
+Open Content Operations at <http://localhost:5174> and Unified Student Learning at <http://localhost:5176>. The API runs at <http://localhost:3001>, with interactive documentation at <http://localhost:3001/api/docs>.
 
 If `psql` is not on your shell path when using Postgres.app, add its command-line tools to `PATH`, or run the database setup from a terminal configured by Postgres.app.
 

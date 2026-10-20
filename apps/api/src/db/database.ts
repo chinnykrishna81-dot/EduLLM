@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 // Load the API environment before constructing the pool. main.ts also loads
 // these values, but static imports create this pool first during `npm start`.
-for (const envPath of [resolve(process.cwd(), '.env'), resolve(process.cwd(), 'apps/api/.env')]) {
+for (const envPath of [resolve(process.cwd(), '.env'), resolve(process.cwd(), '../../.env'), resolve(process.cwd(), 'apps/api/.env')]) {
   try {
     const env = readFileSync(envPath, 'utf8');
     for (const line of env.split(/\r?\n/)) {

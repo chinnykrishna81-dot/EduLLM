@@ -1,6 +1,6 @@
 import type { CoursePackage, MediaAsset } from '@edullm/content-schema';
 
-export const API = 'http://localhost:3001';
+export const API = import.meta.env.VITE_API_ORIGIN ?? 'http://localhost:3001';
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('edullm_cms_token'),
     headers = new Headers(options.headers);
@@ -44,7 +44,8 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ password })
     }),
-  deleteUser: (id: string) => request<{ deleted: boolean }>(`/users/${id}`, { method: 'DELETE' })
+  deleteUser: (id: string) => request<{ deleted: boolean }>(`/users/${id}`, { method: 'DELETE' }),
+  resetCycleTest: (userId: string, chapterId: string) => request<{reset:boolean;attemptsRemoved:number;chapterTitle:string}>(`/users/${userId}/cycle-tests/${chapterId}`, { method: 'DELETE' })
 };
 
 export type CourseRecord = {
@@ -80,6 +81,23 @@ export type LibraryChapter = {
   package?: any;
   cycleTest?: any;
   updatedAt: string;
+};
+export type MediaExplorerAsset = {
+  id: string;
+  fileName: string;
+  url: string;
+  mimeType: string;
+  byteSize: number;
+  title: string;
+  caption: string;
+  altText: string;
+  createdAt: string;
+  className: string;
+  subjectName: string;
+  chapterId: string;
+  chapterTitle: string;
+  folder: {type: 'topic'|'question_type1'|'question_type2'|'unassigned'; id: string; label: string};
+  references: Array<{type: string; id: string; label: string}>;
 };
 export type ChapterPackageValidation = {
   success: boolean;
@@ -182,6 +200,13 @@ export const api = {
 
 export const platformApi = {
   adminDashboard: () => request<any>('/admin/dashboard'),
+  mediaExplorer: () => request<MediaExplorerAsset[]>('/media-explorer'),
+  addExplorerMedia: (chapterId:string,file:File,folder:{type:string;id:string;label:string}) => {
+    const form=new FormData();form.append('file',file);form.append('folderType',folder.type);form.append('folderRefId',folder.id);form.append('folderLabel',folder.label);
+    return request<{id:string}>(`/media-explorer/chapters/${chapterId}`,{method:'POST',body:form});
+  },
+  replaceExplorerMedia: (id:string,file:File) => {const form=new FormData();form.append('file',file);return request<{replaced:boolean;id:string}>(`/media-explorer/${id}/replace`,{method:'POST',body:form})},
+  deleteExplorerMedia: (id:string) => request<{deleted:boolean;id:string}>(`/media-explorer/${id}`,{method:'DELETE'}),
   chapters: () => request<LibraryChapter[]>('/library/chapters'),
   chapterMedia: (id: string) =>
     request<

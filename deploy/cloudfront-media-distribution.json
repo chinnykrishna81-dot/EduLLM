@@ -1,0 +1,36 @@
+{
+  "CallerReference": "edullm-media-20261020",
+  "Comment": "EduLLM private S3 media delivery",
+  "Enabled": true,
+  "HttpVersion": "http2and3",
+  "IsIPV6Enabled": true,
+  "PriceClass": "PriceClass_All",
+  "Origins": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Id": "edullm-media-s3",
+        "DomainName": "edullm-media-994516184686-ap-south-1.s3.ap-south-1.amazonaws.com",
+        "OriginAccessControlId": "E159HXNIBFKESN",
+        "S3OriginConfig": { "OriginAccessIdentity": "" },
+        "ConnectionAttempts": 3,
+        "ConnectionTimeout": 10,
+        "OriginShield": { "Enabled": false }
+      }
+    ]
+  },
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "edullm-media-s3",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "AllowedMethods": { "Quantity": 2, "Items": ["HEAD", "GET"], "CachedMethods": { "Quantity": 2, "Items": ["HEAD", "GET"] } },
+    "Compress": true,
+    "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+    "SmoothStreaming": false,
+    "FieldLevelEncryptionId": "",
+    "TrustedSigners": { "Enabled": false, "Quantity": 0 },
+    "TrustedKeyGroups": { "Enabled": false, "Quantity": 0 }
+  },
+  "ViewerCertificate": { "CloudFrontDefaultCertificate": true, "MinimumProtocolVersion": "TLSv1", "CertificateSource": "cloudfront" },
+  "Restrictions": { "GeoRestriction": { "RestrictionType": "none", "Quantity": 0 } },
+  "CustomErrorResponses": { "Quantity": 0 }
+}

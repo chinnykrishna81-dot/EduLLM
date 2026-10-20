@@ -3,6 +3,7 @@ import writeXlsxFile from 'write-excel-file/browser';
 import { readSheet } from 'read-excel-file/browser';
 import { questionBankApi, type CmsUser, type LibraryChapter } from './api';
 import { QuestionDetailEditor } from './QuestionDetailEditor';
+import { browserId } from './browserId';
 import './question-bank-workspace.css';
 
 const QUESTION_COLUMNS = ['questionId', 'chapterId', 'type', 'format', 'question', 'answer1', 'answer2', 'answer3', 'answer4', 'correctAnswer', 'explanationHtml', 'topicId', 'subtopicId', 'marks', 'patternId', 'difficulty', 'useForPractice', 'useForCycleTest', 'imageIds', 'status'];
@@ -575,7 +576,7 @@ async function parseWorkbook(file: File) {
       const values = (grouped.get(base.id) || [])
         .sort((a, b) => Number(a.sequence) - Number(b.sequence))
         .map((item) => ({
-          id: String(item.stepId || `step-${crypto.randomUUID()}`),
+          id: String(item.stepId || `step-${browserId()}`),
           prompt: String(item.subquestion || ''),
           options: [item.answer1, item.answer2, item.answer3].map(String).filter(Boolean),
           answer: String(item.correctAnswer || ''),

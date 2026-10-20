@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { QuestionDetailEditor } from './QuestionDetailEditor';
+import { browserId } from './browserId';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import readXlsxFile from 'read-excel-file/browser';
 
-const API_BASE = 'http://localhost:3001';
+const API_BASE = import.meta.env.VITE_API_ORIGIN ?? 'http://localhost:3001';
 const token = () => localStorage.getItem('edullm_cms_token') ?? '';
 async function lms<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers({ 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` });
@@ -27,7 +28,7 @@ async function lms<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data;
 }
 
-const uid = () => crypto.randomUUID();
+const uid = () => browserId();
 
 function newType1(cykMode: boolean) {
   return {

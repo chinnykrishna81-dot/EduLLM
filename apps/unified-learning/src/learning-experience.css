@@ -79,3 +79,7 @@
 .sub-topic-btn:disabled{opacity:.42;cursor:default}
 .tree-summary .sap-status,.sub-topic-btn .sap-status{width:20px;height:20px;border-radius:50%;font-size:10px}
 @media(max-width:850px){.pbp-main{max-height:none}.pbp-pager{display:none}}
+.sap-status.orange{background:#ed7d31;border-color:#ed7d31}
+.tree-summary.mastery-green>span{color:var(--sap-green)}
+.tree-summary.mastery-yellow>span{color:#a66a00}
+.tree-summary.mastery-orange>span{color:#c65300}

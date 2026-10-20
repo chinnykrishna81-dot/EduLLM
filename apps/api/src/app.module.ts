@@ -5,12 +5,15 @@ import { MediaController } from './media/media.controller';
 import { MediaService } from './media/media.service';
 import { PlatformController } from './platform/platform.controller';
 import { PlatformService } from './platform/platform.service';
+import { CycleTestService } from './platform/cycle-test.service';
+import { MediaExplorerService } from './platform/media-explorer.service';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
 import { AuthGuard } from './auth/auth.guard';
 import {QuestionBankController} from './question-bank/question-bank.controller';
 import {QuestionBankService} from './question-bank/question-bank.service';
+import {MediaStorageService} from './media/media-storage.service';
 
-@Module({ controllers: [CoursesController, MediaController, PlatformController, AuthController,QuestionBankController], providers: [CoursesService, MediaService, PlatformService, AuthService,QuestionBankService,{provide:APP_GUARD,useClass:AuthGuard}] })
+@Module({ controllers: [CoursesController, MediaController, PlatformController, AuthController,QuestionBankController], providers: [CoursesService, MediaService, MediaStorageService, PlatformService, CycleTestService, MediaExplorerService, AuthService,QuestionBankService,{provide:APP_GUARD,useClass:AuthGuard}] })
 export class AppModule {}

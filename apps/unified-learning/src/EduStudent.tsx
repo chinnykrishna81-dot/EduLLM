@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './edu-student.css';
 
-const API = 'http://localhost:3001/api/content';
+const API = `${import.meta.env.VITE_API_ORIGIN ?? 'http://localhost:3001'}/api/content`;
 
 // ── Inline types ──────────────────────────────────────────────────────────────
 

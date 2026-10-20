@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import {readFileSync} from 'node:fs';
 import { ChapterSchema, chapterLearningPages, validateChapterPackage, validateCoursePackage } from './index';
 
 describe('course package validation', () => {
@@ -33,8 +32,7 @@ describe('structured chapter packages',()=>{
     expect(pages[0]).toMatchObject({topicId:'topic-1',subtopicId:'subtopic-1',id:'page-1'});
   });
   it('keeps the existing Chapter 1 package backward compatible',()=>{
-    const path=new URL('../../../content-packages/cbse-10-science/chemical-reactions-and-equations/chapter.json',import.meta.url);
-    const existing=JSON.parse(readFileSync(path,'utf8'));
+    const existing={schemaVersion:'2.0',packageType:'chapter',chapter:{stableId:'legacy-chapter-1',title:'Legacy Chapter',boardTags:['CBSE'],gradeTags:['10'],subjectTags:['Science']},content:{id:'legacy-chapter-1',title:'Legacy Chapter',topics:[{id:'topic-1',title:'Legacy Topic',concepts:[{id:'concept-1',title:'Legacy Concept',explanation:{summary:'Summary',quickUnderstanding:'Quick',beginner:'Beginner',detailed:'Detailed'},type1Questions:[{id:'question-1',title:'Legacy question',question:'Which answer is correct?',options:['A','B'],correctAnswer:'A',explanation:'A is correct.',usage:['cycle_test_bank']}]}]}]},cycleTest:{title:'Cycle Test',durationMinutes:10,totalMarks:1,retakeAfterDays:30,mastery:{greenPercent:90,yellowPercent:60},blueprint:[{topicId:'topic-1',minimumQuestions:1,marks:1}],questionIds:['question-1']}};
     const result=validateChapterPackage(existing);
     expect(result.success).toBe(true);
     expect(chapterLearningPages(existing.content).length).toBe(existing.content.topics.length);

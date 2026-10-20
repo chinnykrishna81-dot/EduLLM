@@ -1,11 +1,12 @@
 import {useEffect,useMemo,useState,type DragEvent} from 'react';
-import {platformApi,type LibraryChapter} from './api';
+import {API,platformApi,type LibraryChapter} from './api';
 import {TopicKnowledgeCheckEditor} from './TopicKnowledgeCheckEditor';
 import {ChapterResourcesEditor} from './ChapterResourcesEditor';
 import {RichTextEditor} from './RichTextEditor';
+import {browserId} from './browserId';
 import './chapter-structure-builder.css';
 
-const uid=(prefix:string)=>`${prefix}-${crypto.randomUUID()}`;
+const uid=(prefix:string)=>`${prefix}-${browserId()}`;
 const explanation=(text='Add the learning explanation here.')=>({summary:text,quickUnderstanding:text,beginner:text,detailed:text,deepDive:'',examPerspective:'',realWorldApplications:[],misconceptions:[],memoryAids:[],mediaRefs:[],reviewStatus:'draft'});
 const concept=(title='Learning content')=>({id:uid('concept'),title,description:'',learningObjectives:[],mediaRefs:[],reviewStatus:'draft',explanation:explanation(),flashCards:[],learningCards:[],workedExamples:[],questionPatterns:[],type1Questions:[],type2Questions:[]});
 const page=(title='New learning page')=>({id:uid('page'),title,description:'',sequence:1,pageType:'learning',continueRequired:true,mediaRefs:[],blocks:[],concepts:[concept(title)]});

@@ -1,17 +1,23 @@
-import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Put, Query, Req, UploadedFile, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Put, Query, Req, Res, UploadedFile, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { PlatformService } from './platform.service';
+import { CycleTestService } from './cycle-test.service';
+import { MediaExplorerService } from './media-explorer.service';
 
 const chapterStorage=resolve(process.env.STORAGE_DIR||'storage/uploads');
 
 @ApiTags('content-first platform')
 @Controller()
 export class PlatformController {
-  constructor(@Inject(PlatformService) private readonly platform:PlatformService) {}
+  constructor(@Inject(PlatformService) private readonly platform:PlatformService,@Inject(CycleTestService) private readonly cycleTests:CycleTestService,@Inject(MediaExplorerService) private readonly mediaExplorer:MediaExplorerService) {}
+  @Get('media-explorer') listMediaExplorer(){return this.mediaExplorer.list()}
+  @Post('media-explorer/chapters/:chapterId') @UseInterceptors(FileInterceptor('file',{storage:diskStorage({destination:chapterStorage,filename:(_req,file,cb)=>cb(null,`${randomUUID()}${extname(file.originalname).toLowerCase()}`)}),limits:{fileSize:15*1024*1024},fileFilter:(_req,file,cb)=>cb(null,['image/png','image/jpeg','image/webp','image/svg+xml','image/gif','image/avif','image/bmp'].includes(file.mimetype))})) addMediaExplorer(@Param('chapterId') chapterId:string,@UploadedFile() file:Express.Multer.File,@Body() body:any){return this.mediaExplorer.add(chapterId,file,body)}
+  @Post('media-explorer/:id/replace') @UseInterceptors(FileInterceptor('file',{storage:diskStorage({destination:chapterStorage,filename:(_req,file,cb)=>cb(null,`${randomUUID()}${extname(file.originalname).toLowerCase()}`)}),limits:{fileSize:15*1024*1024},fileFilter:(_req,file,cb)=>cb(null,['image/png','image/jpeg','image/webp','image/svg+xml','image/gif','image/avif','image/bmp'].includes(file.mimetype))})) replaceMediaExplorer(@Param('id') id:string,@UploadedFile() file:Express.Multer.File){return this.mediaExplorer.replace(id,file)}
+  @Delete('media-explorer/:id') deleteMediaExplorer(@Param('id') id:string){return this.mediaExplorer.remove(id)}
   @Get('library/chapters') listChapters(){return this.platform.listChapters()}
   @Get('library/chapters/:id') getChapter(@Param('id') id:string){return this.platform.getChapter(id)}
   @Get('library/chapters/:id/media') chapterMedia(@Param('id') id:string){return this.platform.chapterMedia(id)}
@@ -50,8 +56,14 @@ export class PlatformController {
   @Get('student/enrolments') studentEnrolments(@Req() req:any){return this.platform.studentEnrolments(req.user.id)}
   @Post('catalogue/courses/:id/enrol') enrol(@Req() req:any,@Param('id') id:string){return this.platform.enrol(req.user.id,id)}
   @Get('catalogue/courses/:id/access') access(@Req() req:any,@Param('id') id:string){return this.platform.hasAccess(req.user.id,id)}
-  @Get('catalogue/subjects/:id/index') subjectIndex(@Param('id') id:string){return this.platform.getSubject(id)}
+  @Get('catalogue/subjects/:id/index') subjectIndex(@Param('id') id:string){return this.platform.catalogueSubjectIndex(id)}
   @Get('catalogue/subjects/:id/chapters') subjectChapters(@Param('id') id:string){return this.platform.catalogueSubjectChapters(id)}
   @Get('catalogue/chapters/:id/media') catalogueChapterMedia(@Param('id') id:string){return this.platform.chapterMedia(id)}
+  @Get('catalogue/chapters/:id/embedded-images/:hash') async catalogueEmbeddedImage(@Param('id') id:string,@Param('hash') hash:string,@Res() res:any){const image=await this.platform.embeddedImage(id,hash);res.setHeader('Content-Type',image.mimeType);res.setHeader('Cache-Control','public, max-age=31536000, immutable');return res.send(image.buffer)}
   @Get('catalogue/chapters/:id/assessment') catalogueChapterAssessment(@Param('id') id:string){return this.platform.chapterAssessmentUnified(id)}
+  @Get('catalogue/chapters/:id/cycle-test/status') cycleTestStatus(@Req() req:any,@Param('id') id:string){return this.cycleTests.status(req.user.id,id)}
+  @Post('catalogue/chapters/:id/cycle-test/start') startCycleTest(@Req() req:any,@Param('id') id:string){return this.cycleTests.start(req.user.id,id)}
+  @Patch('catalogue/chapters/:id/cycle-test/attempts/:attemptId/answer') answerCycleTest(@Req() req:any,@Param('id') id:string,@Param('attemptId') attemptId:string,@Body() body:any){return this.cycleTests.answer(req.user.id,id,attemptId,body)}
+  @Post('catalogue/chapters/:id/cycle-test/attempts/:attemptId/submit') submitCycleTest(@Req() req:any,@Param('id') id:string,@Param('attemptId') attemptId:string){return this.cycleTests.submit(req.user.id,id,attemptId)}
+  @Delete('users/:userId/cycle-tests/:chapterId') resetStudentCycleTest(@Param('userId') userId:string,@Param('chapterId') chapterId:string){return this.cycleTests.adminReset(userId,chapterId)}
 }

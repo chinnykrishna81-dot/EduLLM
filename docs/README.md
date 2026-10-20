@@ -34,7 +34,7 @@ No local LLM, Ollama, Docker, or cloud service is required for local development
 Follow [SETUP.md](SETUP.md). Once running:
 
 - Content Studio: <http://localhost:5174>
-- Student Learning: <http://localhost:5175>
+- Unified Student Learning: <http://localhost:5176>
 - API documentation: <http://localhost:3001/api/docs>
 - API health: <http://localhost:3001/api/health>
 

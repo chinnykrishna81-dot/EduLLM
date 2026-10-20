@@ -22,6 +22,7 @@ storage/uploads/*
 
 # Local databases, exports and backups
 *.sql
+!apps/api/src/db/schema.sql
 *.dump
 *.backup
 *.sqlite

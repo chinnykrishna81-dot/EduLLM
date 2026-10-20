@@ -1,0 +1,8 @@
+http://3.6.167.19 {
+  redir https://learn.iqlabsacademy.com{uri} permanent
+}
+
+learn.iqlabsacademy.com {
+  encode gzip zstd
+  reverse_proxy web:80
+}

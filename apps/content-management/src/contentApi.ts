@@ -1,4 +1,4 @@
-const BASE = 'http://localhost:3001/api/content';
+const BASE = `${import.meta.env.VITE_API_ORIGIN ?? 'http://localhost:3001'}/api/content`;
 
 export const api = {
   listPackages: () => fetch(`${BASE}/packages`).then(r => r.json()),

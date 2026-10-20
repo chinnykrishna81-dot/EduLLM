@@ -1,8 +1,9 @@
 import {useState} from 'react';
 import {platformApi} from './api';
+import {browserId} from './browserId';
 import './topic-knowledge-check-editor.css';
 
-const uid=(prefix:string)=>`${prefix}-${crypto.randomUUID()}`;
+const uid=(prefix:string)=>`${prefix}-${browserId()}`;
 const common=(title:string)=>({id:uid('cyk'),title,mediaRefs:[],reviewStatus:'draft',topicId:'',subtopicId:'',usage:['knowledge_check'],patternId:'',difficulty:'medium',examEvidence:[]});
 const type1=()=>({...common('New Type 1 question'),format:'mcq',question:'Enter the question',options:['Option A','Option B','Option C','Option D'],correctAnswer:'Option A',explanation:'Explain why this answer is correct.',distractorExplanations:{},marks:1});
 const step=(position:number)=>({id:uid('step'),prompt:`Step ${position}`,answer:'Correct choice',explanation:'Explain this step.',hint:'',interactionType:'drag_point',options:['Correct choice','Close distractor'],marks:1,isCritical:false,negativeMarks:0,dependsOnStepIds:[],answerContribution:'',mediaRefs:[],answerMediaRefs:[],explanationMediaRefs:[],reviewStatus:'draft'});

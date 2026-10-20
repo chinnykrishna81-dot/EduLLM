@@ -5,7 +5,7 @@ export class AuthController{
   constructor(@Inject(AuthService) private readonly auth:AuthService){}
   @Post('auth/login')login(@Body() body:any){return this.auth.login(body)}
   @Get('auth/google') google(@Res() res:any){return res.redirect(this.auth.googleUrl())}
-  @Get('auth/google/callback') async googleCallback(@Req() req:any,@Res() res:any){try{const result=await this.auth.googleCallback(String(req.query.code||''));res.redirect(`http://localhost:5176/?google_token=${encodeURIComponent(result.token)}`)}catch(error:any){res.redirect(`http://localhost:5176/?google_error=${encodeURIComponent(error.message||'Google sign-in failed')}`)}}
+  @Get('auth/google/callback') async googleCallback(@Req() req:any,@Res() res:any){const studentUrl=process.env.STUDENT_APP_URL||'http://localhost:5176';try{const result=await this.auth.googleCallback(String(req.query.code||''));res.redirect(`${studentUrl}/?google_token=${encodeURIComponent(result.token)}`)}catch(error:any){res.redirect(`${studentUrl}/?google_error=${encodeURIComponent(error.message||'Google sign-in failed')}`)}}
   @Post('auth/register')register(@Body() body:any){return this.auth.register(body)}
   @Get('auth/me')me(@Req() req:any){return req.user}
   @Patch('auth/profile')profile(@Req() req:any,@Body() body:any){return this.auth.updateProfile(req.user.id,body)}

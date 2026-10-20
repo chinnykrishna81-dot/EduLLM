@@ -1,8 +1,9 @@
 import {useMemo,useState} from 'react';
 import {RichTextEditor} from './RichTextEditor';
+import {browserId} from './browserId';
 import './question-detail-editor.css';
 
-const uid=()=>`step-${crypto.randomUUID()}`;
+const uid=()=>`step-${browserId()}`;
 const newStep=()=>({id:uid(),prompt:'',options:['',''],answer:'',marks:1,negativeMarks:0,isCritical:false,explanation:'',interactionType:'drag_point',mediaRefs:[],answerMediaRefs:[],explanationMediaRefs:[]});
 
 export function QuestionDetailEditor({question,topics,close,save,remove,busy}:{question:any;topics:any[];close:()=>void;save:(value:any)=>void;remove:()=>void;busy:boolean}){

@@ -9,7 +9,7 @@ import { AppModule } from './app.module';
 import { query } from './db/database';
 import { readFileSync } from 'node:fs';
 
-for (const envPath of [resolve(process.cwd(), '.env'), resolve(process.cwd(), 'apps/api/.env')]) { try { const env=readFileSync(envPath,'utf8'); for(const line of env.split(/\r?\n/)){const m=line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);if(m&&!process.env[m[1]])process.env[m[1]]=m[2].replace(/^['"]|['"]$/g,'')}} catch {} }
+for (const envPath of [resolve(process.cwd(), '.env'), resolve(process.cwd(), '../../.env'), resolve(process.cwd(), 'apps/api/.env')]) { try { const env=readFileSync(envPath,'utf8'); for(const line of env.split(/\r?\n/)){const m=line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);if(m&&!process.env[m[1]])process.env[m[1]]=m[2].replace(/^['"]|['"]$/g,'')}} catch {} }
 
 async function bootstrap() {
   const allowedOrigins = (process.env.WEB_ORIGINS || process.env.CMS_ORIGIN || 'http://localhost:5174,http://localhost:5175,http://localhost:5176').split(',').map(value => value.trim());

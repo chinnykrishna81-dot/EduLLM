@@ -5,7 +5,8 @@ import { randomUUID } from 'node:crypto';
 import { hashPassword } from '../auth/auth.service';
 
 async function main() {
-  const baseUrl = process.env.DATABASE_URL || 'postgresql://I039196@localhost:5432/edullm';
+  const baseUrl = process.env.DATABASE_URL;
+  if (!baseUrl) throw new Error('DATABASE_URL is required. Copy .env.example to .env and set your local PostgreSQL credentials.');
   const target = new URL(baseUrl);
   const database = target.pathname.slice(1) || 'edullm';
   target.pathname = '/postgres';

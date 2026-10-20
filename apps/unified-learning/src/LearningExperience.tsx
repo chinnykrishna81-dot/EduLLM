@@ -2,10 +2,12 @@ import {useEffect,useMemo,useRef,useState,type DragEvent} from 'react';
 import {chapterLearningPages} from '@edullm/content-schema';
 import './learning-experience.css';
 import './navigation-cleanup.css';
+import {shuffleForStudent} from './studentShuffle';
+import {CycleTestExperience} from './CycleTestExperience';
 
-const API='http://localhost:3001';
+const API=import.meta.env.VITE_API_ORIGIN ?? 'http://localhost:3001';
 const statusKey=(chapterId:string)=>`edullm-progress:${chapterId}`;
-type Progress={opened:string[];pageCompleted:string[];completed:string[];resourcesOpened:string[];verified:boolean;mastery:Record<string,'green'|'yellow'|'red'>;cykRevealed:string[];cycleStartedAt?:string;cycleSubmittedAt?:string;cycleAttempt?:number};
+type Progress={opened:string[];pageCompleted:string[];completed:string[];resourcesOpened:string[];verified:boolean;mastery:Record<string,'green'|'yellow'|'orange'>;cykRevealed:string[];cycleStartedAt?:string;cycleSubmittedAt?:string;cycleAttempt?:number};
 type CykState='green'|'yellow'|'grey';
 const blank=():Progress=>({opened:[],pageCompleted:[],completed:[],resourcesOpened:[],verified:false,mastery:{},cykRevealed:[]});
 const readProgress=(id:string):Progress=>{try{return {...blank(),...JSON.parse(localStorage.getItem(statusKey(id))||'{}')}}catch{return blank()}};
@@ -50,13 +52,13 @@ export function ChapterLearning({subject,chapter,back,externalPractice}:{subject
   const mainRef=useRef<HTMLElement|null>(null);
   useEffect(()=>{fetch(`${API}/api/catalogue/chapters/${chapter.id}/media`).then(r=>r.ok?r.json():[]).then(setMedia).catch(()=>setMedia([]))},[chapter.id]);
   useEffect(()=>{
-    if(externalPractice!==undefined||cpHasQuestions)return;
+    if(extra!=='practice'||externalPractice!==undefined||cpHasQuestions)return;
     fetch(`${API}/api/catalogue/chapters/${chapter.id}/assessment`)
-      .then(r=>r.ok?r.json():[]).then((qs:any[])=>{
-        if(!qs.length)return;
+      .then(r=>r.ok?r.json():{questions:[]}).then((result:any)=>{
+        const qs=Array.isArray(result)?result:(result.questions||[]);
         setApiPractice({title:'Chapter Practice',instructions:'Practice questions · no marks · immediate feedback',type1Questions:qs.filter((q:any)=>q.type!=='type2'),type2Questions:qs.filter((q:any)=>q.type==='type2')});
       }).catch(()=>{});
-  },[chapter.id,cpHasQuestions,externalPractice]);
+  },[chapter.id,cpHasQuestions,externalPractice,extra]);
   useEffect(()=>{localStorage.setItem(statusKey(chapter.id),JSON.stringify(progress))},[chapter.id,progress]);
   useEffect(()=>{
     const page=pages[cur];
@@ -69,6 +71,7 @@ export function ChapterLearning({subject,chapter,back,externalPractice}:{subject
   const page=pages[cur],nextPage=pages[cur+1],topicEnds=!nextPage||nextPage.topicId!==page?.topicId,isLast=cur>=pages.length-1;
   const cykRev=(progress.cykRevealed||[]).includes(page?.topicId),topicDone=progress.completed.includes(page?.topicId);
   const effectiveCp=externalPractice!==undefined?externalPractice:(cpHasQuestions?cp:apiPractice);
+  const practiceStep=externalPractice===undefined||!!effectiveCp;
   const allPracticeQs=[...(effectiveCp?.type1Questions||[]),...(effectiveCp?.type2Questions||[])];
   const toggleTag=(id:string)=>setTagged(prev=>{const next=new Set(prev);next.has(id)?next.delete(id):next.add(id);localStorage.setItem(`edullm-tagged:${chapter.id}`,JSON.stringify([...next]));return next;});
   const doNext=()=>{
@@ -81,7 +84,7 @@ export function ChapterLearning({subject,chapter,back,externalPractice}:{subject
       const tid=page.topicId,tp=pages.filter((pg:any)=>pg.topicId===tid);
       setProgress(p=>({...p,pageCompleted:[...new Set([...p.pageCompleted,...tp.map((pg:any)=>pg.id)])],completed:[...new Set([...p.completed,tid])]}));
     }
-    if(isLast){setExtra(sn?'smart':kg?'graph':effectiveCp?'practice':'completion');return;}
+    if(isLast){setExtra(sn?'smart':kg?'graph':practiceStep?'practice':'completion');return;}
     const ni=cur+1;
     setCur(ni);
   };
@@ -93,7 +96,7 @@ export function ChapterLearning({subject,chapter,back,externalPractice}:{subject
   const primaryTitle=introduction?page?.topicTitle:page?.subtopicTitle;
   const within=pages.filter((p:any)=>p.subtopicId===page?.subtopicId);
   const position=within.findIndex((p:any)=>p.id===page?.id);
-  const nextLabel=isLast?`Continue to ${sn?'Smart Notes':kg?'Knowledge Graph':effectiveCp?'Chapter Practice':'Chapter Review'}`:topicEnds&&page?.knowledgeCheck&&!cykRev&&!topicDone?'Check Your Knowledge →':'Next →';
+  const nextLabel=isLast?`Continue to ${sn?'Smart Notes':kg?'Knowledge Graph':practiceStep?'Chapter Practice':'Chapter Review'}`:topicEnds&&page?.knowledgeCheck&&!cykRev&&!topicDone?'Check Your Knowledge →':'Next →';
   return <div className="sap-learning-shell">
     <header className="sap-topbar"><button onClick={back}>← Subject</button><b>{subject.title}</b><span>{pct}% COMPLETE</span></header>
     <div className="sap-learning-layout">
@@ -122,7 +125,7 @@ export function ChapterLearning({subject,chapter,back,externalPractice}:{subject
             <div className="sap-practice-subfolder"><button className="sap-sf-item chapter-practice-index" onClick={()=>{setOpenPracticeFolder(openPracticeFolder==='type1'?null:'type1');setPracticeFilter('type1');setPracticeIndex(0);setExtra('practice');}}><StatusBox state="empty"/><span>MCQ ({effectiveCp.type1Questions?.length||0})</span><strong>{openPracticeFolder==='type1'?'⌃':'⌄'}</strong></button>{openPracticeFolder==='type1'&&<div className="sap-practice-grid">{(effectiveCp.type1Questions||[]).map((q:any,i:number)=><button key={q.id} className={`sap-practice-num${tagged.has(q.id)?' tagged':''}`} onClick={()=>{setPracticeIndex(i);setPracticeFilter('type1');setExtra('practice');}}>{i+1}</button>)}</div>}</div>
             <div className="sap-practice-subfolder"><button className="sap-sf-item chapter-practice-index" onClick={()=>{setOpenPracticeFolder(openPracticeFolder==='type2'?null:'type2');setPracticeFilter('type2');setPracticeIndex(0);setExtra('practice');}}><StatusBox state="empty"/><span>Guided Questions ({effectiveCp.type2Questions?.length||0})</span><strong>{openPracticeFolder==='type2'?'⌃':'⌄'}</strong></button>{openPracticeFolder==='type2'&&<div className="sap-practice-grid">{(effectiveCp.type2Questions||[]).map((q:any,i:number)=><button key={q.id} className={`sap-practice-num${tagged.has(q.id)?' tagged':''}`} onClick={()=>{setPracticeIndex(i);setPracticeFilter('type2');setExtra('practice');}}>{i+1}</button>)}</div>}</div>
             {tagged.size>0&&<button className="sap-sf-item chapter-practice-tagged" onClick={()=>{setPracticeFilter('tagged');setPracticeIndex(0);setExtra('practice');}}><StatusBox state='empty'/><span>Important ({tagged.size})</span></button>}
-          </>:<div className="sap-sf-empty">No practice questions yet</div>}
+          </>:<button className="sap-sf-item chapter-practice-index" onClick={()=>setExtra('practice')}><StatusBox state="empty"/><span>Open Chapter Practice</span></button>}
         </details>
 
         <button className="cycle-test-index chapter-completion-index" onClick={()=>setExtra('completion')}><StatusBox state='empty'/><span>Cycle Test</span></button>
@@ -144,10 +147,11 @@ export function ChapterLearning({subject,chapter,back,externalPractice}:{subject
             <button className="pbp-next" onClick={doNext}>{nextLabel}</button>
           </div>
         </>}
-        {extra==='smart'&&sn&&<SmartNotesPage notes={sn} node={()=>{}} next={()=>setExtra(kg?'graph':effectiveCp?'practice':'completion')}/>}
-        {extra==='graph'&&kg&&<KnowledgeGraphPage graph={kg} node={()=>{}} next={()=>setExtra(effectiveCp?'practice':'completion')}/>}
+        {extra==='smart'&&sn&&<SmartNotesPage notes={sn} node={()=>{}} next={()=>setExtra(kg?'graph':practiceStep?'practice':'completion')}/>}
+        {extra==='graph'&&kg&&<KnowledgeGraphPage graph={kg} node={()=>{}} next={()=>setExtra(practiceStep?'practice':'completion')}/>}
+        {extra==='practice'&&!effectiveCp&&<section className="topic-webpage"><h1>Chapter Practice</h1><p>Loading practice questions…</p></section>}
         {extra==='practice'&&effectiveCp&&<ChapterPractice practice={effectiveCp} mediaFor={mediaFor} node={()=>{}} continueToCompletion={()=>setExtra('completion')} index={practiceIndex} setIndex={setPracticeIndex} filter={practiceFilter} tagged={tagged} toggleTag={toggleTag}/>}
-        {extra==='completion'&&<ChapterCompletion chapter={chapter} verified={progress.verified} progress={progress} verify={verify} start={()=>setProgress(p=>({...p,cycleStartedAt:new Date().toISOString(),cycleSubmittedAt:undefined,cycleAttempt:(p.cycleAttempt||0)+1}))} submit={()=>setProgress(p=>({...p,cycleStartedAt:undefined,cycleSubmittedAt:new Date().toISOString()}))} node={()=>{}}/>}
+        {extra==='completion'&&<CycleTestExperience chapter={chapter} verified={progress.verified} verify={verify} onMastery={mastery=>setProgress(current=>({...current,mastery:{...current.mastery,...mastery}}))}/>}
         {extra&&<div className="pbp-nav"><button className="pbp-prev" onClick={goPrev}>← Back to Chapter</button><span/><span/></div>}
       </main>
     </div>
@@ -165,7 +169,7 @@ function TreeNavigation({groups,pages,progress,cykStatus,cur,navigate,activeRef}
     const state=complete?(progress.mastery[group.id]||'blue'):done||group.pages.some((p:any)=>progress.opened.includes(p.id))?'active':'empty';
     const subtopics=group.subtopics.filter((s:any)=>!s.introduction);
     return <details open={isTopicActive||complete} key={group.id}>
-      <summary className={`tree-summary${isTopicActive?' topic-active':''}`} onClick={()=>navigate(firstIdx)}>
+      <summary className={`tree-summary mastery-${state}${isTopicActive?' topic-active':''}`} onClick={()=>navigate(firstIdx)}>
         <StatusBox state={state} percent={pct}/>
         <span ref={isTopicActive&&!subtopics.length?(node=>{activeRef.current=node;}):undefined}>{group.title}</span>
         <strong>⌄</strong>
@@ -194,7 +198,9 @@ function SmartNotesPage({notes,node,next}:{notes:any;node:(value:HTMLElement|nul
 function KnowledgeGraphPage({graph,node,next}:{graph:any;node:(value:HTMLElement|null)=>void;next:()=>void}){const item=graph.resource,imageViewer=useRef<HTMLElement>(null),[zoom,setZoom]=useState(100),openFullScreen=()=>{setZoom(100);imageViewer.current?.requestFullscreen()},closeFullScreen=()=>document.fullscreenElement&&document.exitFullscreen();return <article className="topic-webpage chapter-resource-page knowledge-graph-page" ref={node}><small>CHAPTER RESOURCE</small><h1>{graph.title||'Knowledge Graph'}</h1><RichContent className="topic-lead" value={graph.description||'Connect and recall the Chapter concepts through one visual map.'}/>{item?.mimeType?.startsWith('image/')?<section className="knowledge-graph-viewer" ref={imageViewer}><header><span>Use the available width or open the visual in full screen.</span><button type="button" onClick={openFullScreen}>View full screen ⛶</button></header><nav className="knowledge-graph-fullscreen-toolbar" aria-label="Knowledge graph viewer controls"><b>Knowledge Graph</b><button type="button" aria-label="Zoom out" onClick={()=>setZoom(value=>Math.max(50,value-25))}>−</button><span>{zoom}%</span><button type="button" aria-label="Zoom in" onClick={()=>setZoom(value=>Math.min(250,value+25))}>+</button><button type="button" onClick={()=>setZoom(100)}>Fit width</button><button type="button" onClick={closeFullScreen}>Exit full screen ✕</button></nav><div className="knowledge-graph-scroll-area"><img className="knowledge-graph-image" style={{width:`${zoom}%`}} src={`${API}${item.url}`} alt={`${graph.title||'Knowledge Graph'} for this Chapter`}/></div></section>:item?.mimeType==='application/pdf'?<section className="resource-document"><header><b>{item.fileName}</b><span>{item.pageCount||1} page(s)</span></header><iframe title={item.fileName} src={`${API}${item.url}#toolbar=0&navpanes=0`}/></section>:item?.extractedHtml?<DocumentHtml value={item.extractedHtml}/>:<p>No Knowledge Graph has been uploaded.</p>}<footer className="topic-end"><small>KNOWLEDGE GRAPH COMPLETE</small><button onClick={next}>Continue⌄</button></footer></article>}
 function DocumentHtml({value}:{value:string}){return value?<section className="chapter-document-html" dangerouslySetInnerHTML={{__html:safeDocumentHtml(value)}}/>:null}
 function smartNotesPages(value:string){if(!value)return [];const parsed=new DOMParser().parseFromString(value,'text/html'),nodes=Array.from(parsed.body.children),starts=nodes.flatMap((element,index)=>{const heading=/^H[1-4]$/.test(element.tagName),numbered=/^\d+\.\s+\S/.test(element.textContent?.trim()||''),next=nodes[index+1]?.textContent?.trim()||'',section=heading||numbered&&/Must Remember/i.test(next);return section?[index]:[]});if(starts.length<2)return [value];const boundaries=[0,...starts.slice(1),nodes.length];return boundaries.slice(0,-1).map((start,index)=>nodes.slice(start,boundaries[index+1]).map(element=>element.outerHTML).join('')).filter(Boolean)}
-function safeDocumentHtml(value:string){const parsed=new DOMParser().parseFromString(value,'text/html'),allowed=new Set(['P','BR','B','STRONG','I','EM','U','UL','OL','LI','H1','H2','H3','H4','SUB','SUP','BLOCKQUOTE','HR','TABLE','THEAD','TBODY','TR','TH','TD','IMG']);parsed.body.querySelectorAll('*').forEach(node=>{if(!allowed.has(node.tagName)){node.replaceWith(...Array.from(node.childNodes));return}Array.from(node.attributes).forEach(attribute=>{const keep=node.tagName==='IMG'&&attribute.name==='src'&&attribute.value.startsWith('data:image/');if(!keep)node.removeAttribute(attribute.name)})});return parsed.body.innerHTML}
+function safeImageSource(value:string){return value.startsWith('data:image/')||/^\/api\/catalogue\/chapters\/[a-f0-9-]+\/embedded-images\/[a-f0-9]{64}$/i.test(value)||/^\/uploads\/[a-z0-9._-]+$/i.test(value)||/^https:\/\/[a-z0-9.-]+\.cloudfront\.net\/edullm\/[a-z0-9._~!$&'()*+,;=:@%/-]+$/i.test(value)||/^https:\/\/media\.learn\.iqlabsacademy\.com\/edullm\/[a-z0-9._~!$&'()*+,;=:@%/-]+$/i.test(value)}
+function prepareSafeImage(node:Element){node.setAttribute('loading','lazy');node.setAttribute('decoding','async');node.setAttribute('style','display:block;max-width:100%;height:auto;margin:16px auto;border-radius:6px')}
+function safeDocumentHtml(value:string){const parsed=new DOMParser().parseFromString(value,'text/html'),allowed=new Set(['P','BR','B','STRONG','I','EM','U','UL','OL','LI','H1','H2','H3','H4','SUB','SUP','BLOCKQUOTE','HR','TABLE','THEAD','TBODY','TR','TH','TD','IMG']);parsed.body.querySelectorAll('*').forEach(node=>{if(!allowed.has(node.tagName)){node.replaceWith(...Array.from(node.childNodes));return}Array.from(node.attributes).forEach(attribute=>{const keep=node.tagName==='IMG'&&((attribute.name==='src'&&safeImageSource(attribute.value))||attribute.name==='alt');if(!keep)node.removeAttribute(attribute.name)});if(node.tagName==='IMG'&&node.getAttribute('src'))prepareSafeImage(node)});return parsed.body.innerHTML}
 
 function PageBlocks({blocks,mediaFor}:{blocks:any[];mediaFor:(refs:string[])=>any[]}){
   const side=blocks.find(block=>block.type==='image'&&['image-left','image-right'].includes(block.layout)&&mediaFor([block.mediaRef])[0]);
@@ -205,7 +211,7 @@ function PageBlocks({blocks,mediaFor}:{blocks:any[];mediaFor:(refs:string[])=>an
   return <section className="learning-page-blocks">{blocks.map(block=>block.type==='image'?image(block):block.type==='image-inline'?imageInline(block):renderText(block))}</section>
 }
 function RichContent({value,className}:{value:string;className?:string}){if(!value)return null;const html=/<[a-z][\s\S]*>/i.test(value)?safeHtml(value):safeHtml(parseMarkdown(value));return <div className={className} dangerouslySetInnerHTML={{__html:html}}/>}
-function safeHtml(value:string){const documentValue=new DOMParser().parseFromString(value,'text/html'),allowed=new Set(['P','BR','B','STRONG','I','EM','U','UL','OL','LI','H2','H3','H4','H5','SUB','SUP','BLOCKQUOTE','HR','CODE','TABLE','THEAD','TBODY','TR','TH','TD','IMG']);documentValue.body.querySelectorAll('*').forEach(node=>{if(!allowed.has(node.tagName))node.replaceWith(...Array.from(node.childNodes));else Array.from(node.attributes).forEach(attribute=>{const isImg=node.tagName==='IMG';const keepImg=isImg&&(attribute.name==='alt'||(attribute.name==='src'&&attribute.value.startsWith('data:image/'))||attribute.name==='style');if(!keepImg)node.removeAttribute(attribute.name)})});return documentValue.body.innerHTML}
+function safeHtml(value:string){const documentValue=new DOMParser().parseFromString(value,'text/html'),allowed=new Set(['P','BR','B','STRONG','I','EM','U','UL','OL','LI','H2','H3','H4','H5','SUB','SUP','BLOCKQUOTE','HR','CODE','TABLE','THEAD','TBODY','TR','TH','TD','IMG']);documentValue.body.querySelectorAll('*').forEach(node=>{if(!allowed.has(node.tagName))node.replaceWith(...Array.from(node.childNodes));else{Array.from(node.attributes).forEach(attribute=>{const isImg=node.tagName==='IMG';const keepImg=isImg&&(attribute.name==='alt'||(attribute.name==='src'&&safeImageSource(attribute.value)));if(!keepImg)node.removeAttribute(attribute.name)});if(node.tagName==='IMG'&&node.getAttribute('src'))prepareSafeImage(node)}});return documentValue.body.innerHTML}
 
 function ConceptPage({concept,mediaFor,legacyPractice,hideTitle=false}:{concept:any;mediaFor:(refs:string[])=>any[];legacyPractice:boolean;hideTitle?:boolean}){
   const cards=[...(concept.learningCards||[]),...(concept.flashCards||[])];
@@ -233,11 +239,11 @@ function ChapterCompletion({chapter,verified,progress,verify,start,submit,node}:
 <section id={`cycle-test-${chapter.id}`} className={`chapter-cycle-test ${verified&&test?'unlocked':'locked'}`}><small>NEXT · CYCLE TEST</small><h2>{test?.title||'Cycle Test'}</h2>{test?<><div className="cycle-test-facts"><span><b>{test.totalMarks}</b> marks</span><span><b>{test.durationMinutes}</b> minutes</span><span><b>{test.sections?.length||0}</b> sections</span><span>Results Available in <b>{test.resultDelayHours??24} Hours</b></span></div>
 {!verified&&<p><b>Unlock criteria:</b> Select "Verify - Chapter Completed."</p>}{verified&&form&&<p><b>Available form:</b> Form {formNumber} · {form.sections?.reduce((n:number,s:any)=>n+(s.questionIds?.length||0),0)} questions</p>}{cooldown&&<p><b>Retake locked:</b> available after {new Date(submitted+retakeDays*86400000).toLocaleString()}.</p>}
 </>:<p>This Cycle Test has not yet been configured by the Teacher.</p>}<button disabled={!verified||!test||cooldown||started} onClick={()=>setInstructions(true)}>{started?'Cycle Test in progress':cooldown?'Cycle Test locked during retake period':verified&&test?'Review instructions and start →':test?'🔒 Confidence declaration required to unlock':'Cycle Test not configured'}</button>{started&&<button onClick={submit}>Submit Cycle Test</button>}{instructions&&test&&!started&&<section className="cycle-instructions"><h3>Before you begin · Form {formNumber}</h3><ul><li>The timer starts after final confirmation and does not pause.</li><li>Duration: {test.durationMinutes} minutes.</li><li>Submitting manually or reaching the time limit locks this test for {retakeDays} day(s).</li></ul><button onClick={()=>{setInstructions(false);start()}}>I understand — Start Cycle Test</button></section>}</section></article>}
-function StatusLegend(){return <div className="sap-status-legend"><span><StatusBox state="empty"/>Not started</span><span><StatusBox state="blue"/>Completed</span><span><StatusBox state="green"/>Strong</span><span><StatusBox state="yellow"/>Developing</span><span><StatusBox state="red"/>Focus</span></div>}
+function StatusLegend(){return <div className="sap-status-legend"><span><StatusBox state="empty"/>Not started</span><span><StatusBox state="blue"/>Completed</span><span><StatusBox state="green"/>Strong</span><span><StatusBox state="yellow"/>Developing</span><span><StatusBox state="orange"/>Focus</span></div>}
 function StatusBox({state,percent=0}:{state:string;percent?:number}){return <i className={`sap-status ${state}`} style={state==='active'&&percent>0?{background:`conic-gradient(var(--sap-bright) ${percent}%,#d6dde3 0)`}:undefined} aria-label={state}>{state!=='empty'&&state!=='active'?'✓':''}</i>}
 function groupTopics(pages:any[]){return pages.reduce((groups:any[],page:any)=>{let group=groups.find(item=>item.id===page.topicId);if(!group){group={id:page.topicId,title:page.topicTitle,pages:[],subtopics:[]};groups.push(group)}group.pages.push(page);let subtopic=group.subtopics.find((item:any)=>item.id===page.subtopicId);if(!subtopic){subtopic={id:page.subtopicId,title:page.subtopicTitle,introduction:page.pageType==='introduction'||page.syllabusCode==='INTRO',pages:[]};group.subtopics.push(subtopic)}subtopic.pages.push(page);return groups},[])}
 function topicComplete(group:any,progress:Progress){return group.pages.length>0&&group.pages.every((page:any)=>progress.pageCompleted.includes(page.id))}
 function normalizeAnswer(value:string){return String(value||'').trim().toLocaleLowerCase().replace(/\s+/g,' ').replace(/[.,;:]$/,'')}
-function jumble(values:string[],seedText:string){const result=[...values],seed=[...String(seedText)].reduce((n,c)=>(n*31+c.charCodeAt(0))>>>0,7);for(let i=result.length-1;i>0;i--){const j=(seed+i*17)%(i+1);[result[i],result[j]]=[result[j],result[i]]}return result}
+function jumble(values:string[],seedText:string){return shuffleForStudent(values,seedText)}
 function inlineMarkdown(text:string):string{return text.replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*([^*\n]+?)\*/g,'<em>$1</em>').replace(/`([^`]+)`/g,'<code>$1</code>')}
 function parseMarkdown(text:string):string{const lines=text.split('\n'),out:string[]=[],para:string[]=[];let listType:string|null=null,listItems:string[]=[],tableRows:string[][]=[];const fi=()=>{if(para.length){out.push(`<p>${para.map(inlineMarkdown).join('<br/>')}</p>`);para.length=0}};const fl=()=>{if(listItems.length&&listType){out.push(`<${listType}>${listItems.map((i:string)=>`<li>${inlineMarkdown(i)}</li>`).join('')}</${listType}>`);listItems.length=0;listType=null}};const ft=()=>{if(!tableRows.length)return;const[h,...b]=tableRows;out.push(`<table><thead><tr>${h.map((c:string)=>`<th>${inlineMarkdown(c.trim())}</th>`).join('')}</tr></thead><tbody>${b.map((r:string[])=>`<tr>${r.map((c:string)=>`<td>${inlineMarkdown(c.trim())}</td>`).join('')}</tr>`).join('')}</tbody></table>`);tableRows.length=0};for(const line of lines){const t=line.trim();if(!t){fi();fl();ft();continue}if(/^---+$/.test(t)){fi();fl();ft();out.push('<hr/>');continue}const hm=t.match(/^(#{1,4})\s+(.+)$/);if(hm){fi();fl();ft();const lv=Math.min(hm[1].length+1,5);out.push(`<h${lv}>${inlineMarkdown(hm[2])}</h${lv}>`);continue}const bq=t.match(/^>\s*(.*)$/);if(bq){fi();fl();ft();out.push(`<blockquote><p>${inlineMarkdown(bq[1])}</p></blockquote>`);continue}if(t.startsWith('|')){fi();fl();if(/^\|[-| :]+\|$/.test(t))continue;tableRows.push(t.replace(/^\||\|$/g,'').split('|'));continue}const ul=t.match(/^[-*]\s+(.+)$/);if(ul){fi();if(listType!=='ul'){fl();listType='ul'}ft();listItems.push(ul[1]);continue}const ol=t.match(/^\d+[.)]\s+(.+)$/);if(ol){fi();if(listType!=='ol'){fl();listType='ol'}ft();listItems.push(ol[1]);continue}fl();ft();para.push(line)}fi();fl();ft();return out.join('\n')}

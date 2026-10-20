@@ -1,0 +1,96 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-edullm}
+      POSTGRES_USER: ${POSTGRES_USER:-edullm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/.env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-edullm}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-edullm}
+      WEB_ORIGINS: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN in deploy/.env}
+      STUDENT_APP_URL: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN in deploy/.env}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_CALLBACK_URL: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN in deploy/.env}/api/auth/google/callback
+      STORAGE_DIR: /app/storage/uploads
+      AI_KEY_ENCRYPTION_SECRET: ${AI_KEY_ENCRYPTION_SECRET:?Set AI_KEY_ENCRYPTION_SECRET in deploy/.env}
+      MEDIA_STORAGE_DRIVER: s3
+      MEDIA_S3_BUCKET: ${MEDIA_S3_BUCKET:?Set MEDIA_S3_BUCKET in deploy/.env}
+      MEDIA_CDN_ORIGIN: ${MEDIA_CDN_ORIGIN:?Set MEDIA_CDN_ORIGIN in deploy/.env}
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?Set AWS_ACCESS_KEY_ID in deploy/.env}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?Set AWS_SECRET_ACCESS_KEY in deploy/.env}
+    volumes:
+      - uploads_data:/app/storage/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    command: ["node", "dist/db/setup.js"]
+    working_dir: /app/apps/api
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-edullm}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-edullm}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:?Set BOOTSTRAP_ADMIN_EMAIL in deploy/.env}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:?Set BOOTSTRAP_ADMIN_PASSWORD in deploy/.env}
+      BOOTSTRAP_TEACHER_EMAIL: ${BOOTSTRAP_TEACHER_EMAIL:?Set BOOTSTRAP_TEACHER_EMAIL in deploy/.env}
+      BOOTSTRAP_TEACHER_PASSWORD: ${BOOTSTRAP_TEACHER_PASSWORD:?Set BOOTSTRAP_TEACHER_PASSWORD in deploy/.env}
+      MEDIA_STORAGE_DRIVER: s3
+      MEDIA_S3_BUCKET: ${MEDIA_S3_BUCKET:?Set MEDIA_S3_BUCKET in deploy/.env}
+      MEDIA_CDN_ORIGIN: ${MEDIA_CDN_ORIGIN:?Set MEDIA_CDN_ORIGIN in deploy/.env}
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?Set AWS_ACCESS_KEY_ID in deploy/.env}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?Set AWS_SECRET_ACCESS_KEY in deploy/.env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2.10-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  uploads_data:
+  caddy_data:
+  caddy_config:
+
