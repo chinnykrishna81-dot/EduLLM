@@ -39,7 +39,7 @@ export const Type2StepSchema = z.object({
 export const Type2Schema = z.object({
   ...commonAsset,
   topicId: text, subtopicId: text, usage: z.array(z.enum(['knowledge_check','chapter_practice','cycle_test_bank'])).default([]),
-  question: z.string().min(1), patternId: text, difficulty: z.enum(['easy','medium','hard']).default('medium'),
+  question: z.string().min(1), patternId: text, difficulty: z.enum(['easy','medium','hard','competency']).default('medium'),
   totalMarks: z.number().positive(), steps: z.array(Type2StepSchema).min(2), finalAnswer: z.string().min(1),
   commonMistakes: z.array(z.string()).default([]), useForPractice: z.boolean().default(true), examEvidence
 }).superRefine((value,ctx) => {

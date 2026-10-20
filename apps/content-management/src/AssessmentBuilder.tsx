@@ -3,11 +3,11 @@ import {API,platformApi} from './api';
 import {RichTextEditor} from './RichTextEditor';
 import './assessment-builder.css';
 
-const ALL_DIFF = ['easy','medium','hard'] as const;
-type Diff = 'easy'|'medium'|'hard';
+const ALL_DIFF = ['easy','medium','hard','competency'] as const;
+type Diff = 'easy'|'medium'|'hard'|'competency';
 
 // Difficulty sort weight — hard questions repeat first when all are used
-const DIFF_WEIGHT: Record<string,number> = { hard:0, medium:1, easy:2 };
+const DIFF_WEIGHT: Record<string,number> = { competency:0, hard:1, medium:2, easy:3 };
 
 const defaults = [
   {id:'section-1',title:'Section 1 · MCQ',       questionType:'type1',format:'mcq',       questionsPresented:5,questionsRequired:5,marksPerQuestion:1,difficulties:[...ALL_DIFF]},
@@ -422,7 +422,7 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
 
             <div className="section-difficulties">
               <span className="diff-label">Complexity</span>
-              {ALL_DIFF.map(d=>{
+              {ALL_DIFF.filter(d=>s.questionType==='type2'||d!=='competency').map(d=>{
                 const diffs: string[] = s.difficulties || [...ALL_DIFF];
                 return <label key={d} className={`diff-chip${diffs.includes(d)?' on':''}`}>
                   <input type="checkbox" checked={diffs.includes(d)}

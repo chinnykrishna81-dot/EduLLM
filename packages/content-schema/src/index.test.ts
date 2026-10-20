@@ -14,6 +14,11 @@ describe('course package validation', () => {
 });
 
 describe('structured chapter packages',()=>{
+  it('accepts competency complexity for Type 2 questions',()=>{
+    const question={id:'competency-1',title:'Competency question',question:'Apply the concept to this situation.',difficulty:'competency',totalMarks:2,finalAnswer:'Complete answer',steps:[{id:'step-1',prompt:'Choose the first step',answer:'A',options:['A','B'],marks:1},{id:'step-2',prompt:'Choose the conclusion',answer:'B',options:['A','B'],marks:1}]};
+    const content={id:'chapter-1',title:'Chapter',topics:[],chapterPractice:{type2Questions:[question]}};
+    expect(ChapterSchema.safeParse(content).success).toBe(true);
+  });
   it('allows Smart Notes up to 10 MB while keeping Knowledge Graph resources at 5 MB',()=>{
     const resource={id:'resource-1',fileName:'notes.docx',url:'/uploads/notes.docx',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',byteSize:6*1024*1024,uploadedAt:new Date().toISOString(),extractedHtml:'<p>Notes</p>'};
     expect(ChapterSchema.safeParse({id:'chapter-1',title:'Chapter',smartNotes:{title:'Smart Notes',richContent:'',documents:[resource]}}).success).toBe(true);

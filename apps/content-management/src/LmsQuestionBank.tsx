@@ -80,7 +80,7 @@ function newType2() {
 
 const TYPE_COLORS: Record<string, string> = { type1: '#1a56db', type2: '#7c3aed' };
 const TYPE_LABELS: Record<string, string> = { type1: 'Type 1', type2: 'Type 2' };
-const DIFFICULTY: Record<string, string> = { Easy: 'easy', easy: 'easy', Moderate: 'medium', moderate: 'medium', Hard: 'hard', hard: 'hard' };
+const DIFFICULTY: Record<string, string> = { Easy: 'easy', easy: 'easy', Moderate: 'medium', moderate: 'medium', Hard: 'hard', hard: 'hard', Competency: 'competency', competency: 'competency', 'Competency based': 'competency', 'competency based': 'competency' };
 
 // ── Image upload helpers ──────────────────────────────────────────────────────
 
@@ -589,7 +589,7 @@ function computeTypeStats(qs: any[], allQs: any[], topics: any[]): TypeStats {
     withPatternCount: qs.filter(q => q.patternId?.trim()).length,
     patterns,
     byTopic: toEntries(topicMap),
-    byDifficulty: (['easy', 'medium', 'hard'] as const)
+    byDifficulty: (['easy', 'medium', 'hard', 'competency'] as const)
       .map(d => ({ name: d, count: diffMap.get(d)?.length ?? 0, questionNums: diffMap.get(d)?.map(qNum) ?? [] }))
       .filter(e => e.count > 0),
     byStatus: toEntries(statusMap),
@@ -614,7 +614,7 @@ function computeSnapshot(questions: any[], topics: any[]): StatsSnapshot {
 
 const TH: React.CSSProperties = { textAlign: 'left', padding: '8px 12px', background: '#f1f5f9', fontWeight: 600, color: '#374151', borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap' };
 const TD: React.CSSProperties = { padding: '6px 12px', borderBottom: '1px solid #f1f5f9', color: '#374151', verticalAlign: 'top' };
-const diffColors: Record<string, string> = { easy: '#16a34a', medium: '#d97706', hard: '#dc2626' };
+const diffColors: Record<string, string> = { easy: '#16a34a', medium: '#d97706', hard: '#dc2626', competency: '#7c3aed' };
 
 function StatsSection({ label, stats, typeColor }: { label: string; stats: TypeStats; typeColor: string }) {
   if (!stats.count) return (
@@ -934,7 +934,7 @@ function StatsView({ chapterId, questions, topics, refreshKey }: { chapterId: st
   );
 }
 
-const DIFF_COLORS: Record<string, string> = { easy: '#16a34a', medium: '#d97706', hard: '#dc2626' };
+const DIFF_COLORS: Record<string, string> = { easy: '#16a34a', medium: '#d97706', hard: '#dc2626', competency: '#7c3aed' };
 
 function PracticeConfig({
   chapterId, questions, topics, onPublished,
@@ -1018,7 +1018,7 @@ function PracticeConfig({
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#475569' }}>Include difficulty</div>
               <div style={{ display: 'flex', gap: 8 }}>
-                {(['easy', 'medium', 'hard'] as const).map(d => (
+                {(['easy', 'medium', 'hard', 'competency'] as const).map(d => (
                   <label key={d} style={{ display: 'flex', gap: 5, alignItems: 'center', cursor: 'pointer', padding: '4px 10px', borderRadius: 4, border: `1px solid ${selDiff.includes(d) ? DIFF_COLORS[d] : '#e2e8f0'}`, background: selDiff.includes(d) ? DIFF_COLORS[d] + '15' : '#fff', fontSize: 13 }}>
                     <input type="checkbox" checked={selDiff.includes(d)} onChange={e => setSelDiff(prev => e.target.checked ? [...prev, d] : prev.filter(x => x !== d))} />
                     <span style={{ color: selDiff.includes(d) ? DIFF_COLORS[d] : '#64748b', fontWeight: 600, textTransform: 'capitalize' }}>{d}</span>

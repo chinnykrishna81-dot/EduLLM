@@ -1,74 +1,972 @@
-import {useEffect,useMemo,useState,type DragEvent} from 'react';
-import {API,platformApi,type LibraryChapter} from './api';
-import {TopicKnowledgeCheckEditor} from './TopicKnowledgeCheckEditor';
-import {ChapterResourcesEditor} from './ChapterResourcesEditor';
-import {RichTextEditor} from './RichTextEditor';
-import {browserId} from './browserId';
-import './chapter-structure-builder.css';
+import { useEffect, useMemo, useState, type DragEvent } from "react";
+import { API, platformApi, type LibraryChapter } from "./api";
+import { TopicKnowledgeCheckEditor } from "./TopicKnowledgeCheckEditor";
+import { ChapterResourcesEditor } from "./ChapterResourcesEditor";
+import { RichTextEditor } from "./RichTextEditor";
+import { browserId } from "./browserId";
+import "./chapter-structure-builder.css";
 
-const uid=(prefix:string)=>`${prefix}-${browserId()}`;
-const explanation=(text='Add the learning explanation here.')=>({summary:text,quickUnderstanding:text,beginner:text,detailed:text,deepDive:'',examPerspective:'',realWorldApplications:[],misconceptions:[],memoryAids:[],mediaRefs:[],reviewStatus:'draft'});
-const concept=(title='Learning content')=>({id:uid('concept'),title,description:'',learningObjectives:[],mediaRefs:[],reviewStatus:'draft',explanation:explanation(),flashCards:[],learningCards:[],workedExamples:[],questionPatterns:[],type1Questions:[],type2Questions:[]});
-const page=(title='New learning page')=>({id:uid('page'),title,description:'',sequence:1,pageType:'learning',continueRequired:true,mediaRefs:[],blocks:[],concepts:[concept(title)]});
-const topic=(position:number)=>({id:uid('topic'),title:`${position}. New Topic`,description:'',syllabusCode:String(position),sequence:position,mediaRefs:[],introductionPages:[],subtopics:[],concepts:[],parentTopicId:'',parentTopicTitle:''});
-const subtopic=(position:number)=>({id:uid('subtopic'),title:`New Subtopic ${position}`,description:'',syllabusCode:'',sequence:position,mediaRefs:[],pages:[]});
-const normaliseChapterContent=(content:any,chapter:LibraryChapter)=>{
-  const next=structuredClone(content||{});
-  next.title??=chapter.title;
-  next.description??=chapter.description||'';
-  next.topics=Array.isArray(next.topics)?next.topics:[];
-  for(const [topicIndex,item] of next.topics.entries()){
-    item.id??=uid('topic');
-    item.title??=`${topicIndex+1}. New Topic`;
-    item.description??='';
-    item.sequence??=topicIndex+1;
-    item.mediaRefs=Array.isArray(item.mediaRefs)?item.mediaRefs:[];
-    item.introductionPages=Array.isArray(item.introductionPages)?item.introductionPages:[];
-    item.subtopics=Array.isArray(item.subtopics)?item.subtopics:[];
-    const legacy=item.subtopics.map((value:any)=>value?.knowledgeCheck).filter(Boolean);
-    if(!item.knowledgeCheck&&legacy.length)item.knowledgeCheck={title:'Check Your Knowledge',instructions:'Answer every question, then submit the complete check.',type1Questions:legacy.flatMap((value:any)=>value.type1Questions||[]),type2Questions:legacy.flatMap((value:any)=>value.type2Questions||[])};
-    for(const [subtopicIndex,value] of item.subtopics.entries()){
-      value.id??=uid('subtopic');
-      value.title??=`New Subtopic ${subtopicIndex+1}`;
-      value.description??='';
-      value.sequence??=subtopicIndex+1;
-      value.mediaRefs=Array.isArray(value.mediaRefs)?value.mediaRefs:[];
-      value.pages=Array.isArray(value.pages)?value.pages:[];
+const uid = (prefix: string) => `${prefix}-${browserId()}`;
+const explanation = (text = "Add the learning explanation here.") => ({
+  summary: text,
+  quickUnderstanding: text,
+  beginner: text,
+  detailed: text,
+  deepDive: "",
+  examPerspective: "",
+  realWorldApplications: [],
+  misconceptions: [],
+  memoryAids: [],
+  mediaRefs: [],
+  reviewStatus: "draft",
+});
+const concept = (title = "Learning content") => ({
+  id: uid("concept"),
+  title,
+  description: "",
+  learningObjectives: [],
+  mediaRefs: [],
+  reviewStatus: "draft",
+  explanation: explanation(),
+  flashCards: [],
+  learningCards: [],
+  workedExamples: [],
+  questionPatterns: [],
+  type1Questions: [],
+  type2Questions: [],
+});
+const page = (title = "New learning page") => ({
+  id: uid("page"),
+  title,
+  description: "",
+  sequence: 1,
+  pageType: "learning",
+  continueRequired: true,
+  mediaRefs: [],
+  blocks: [],
+  concepts: [concept(title)],
+});
+const topic = (position: number) => ({
+  id: uid("topic"),
+  title: `${position}. New Topic`,
+  description: "",
+  syllabusCode: String(position),
+  sequence: position,
+  mediaRefs: [],
+  introductionPages: [],
+  subtopics: [],
+  concepts: [],
+  parentTopicId: "",
+  parentTopicTitle: "",
+});
+const subtopic = (position: number) => ({
+  id: uid("subtopic"),
+  title: `New Subtopic ${position}`,
+  description: "",
+  syllabusCode: "",
+  sequence: position,
+  mediaRefs: [],
+  pages: [],
+});
+const normaliseChapterContent = (content: any, chapter: LibraryChapter) => {
+  const next = structuredClone(content || {});
+  next.title ??= chapter.title;
+  next.description ??= chapter.description || "";
+  next.topics = Array.isArray(next.topics) ? next.topics : [];
+  for (const [topicIndex, item] of next.topics.entries()) {
+    item.id ??= uid("topic");
+    item.title ??= `${topicIndex + 1}. New Topic`;
+    item.description ??= "";
+    item.sequence ??= topicIndex + 1;
+    item.mediaRefs = Array.isArray(item.mediaRefs) ? item.mediaRefs : [];
+    item.introductionPages = Array.isArray(item.introductionPages)
+      ? item.introductionPages
+      : [];
+    item.subtopics = Array.isArray(item.subtopics) ? item.subtopics : [];
+    const legacy = item.subtopics
+      .map((value: any) => value?.knowledgeCheck)
+      .filter(Boolean);
+    if (!item.knowledgeCheck && legacy.length)
+      item.knowledgeCheck = {
+        title: "Check Your Knowledge",
+        instructions: "Answer every question, then submit the complete check.",
+        type1Questions: legacy.flatMap(
+          (value: any) => value.type1Questions || [],
+        ),
+        type2Questions: legacy.flatMap(
+          (value: any) => value.type2Questions || [],
+        ),
+      };
+    for (const [subtopicIndex, value] of item.subtopics.entries()) {
+      value.id ??= uid("subtopic");
+      value.title ??= `New Subtopic ${subtopicIndex + 1}`;
+      value.description ??= "";
+      value.sequence ??= subtopicIndex + 1;
+      value.mediaRefs = Array.isArray(value.mediaRefs) ? value.mediaRefs : [];
+      value.pages = Array.isArray(value.pages) ? value.pages : [];
       delete value.knowledgeCheck;
     }
   }
   return next;
 };
-type Selection={type:'topic'|'subtopic';topicIndex:number;subtopicIndex?:number};
-type Media={fileName:string;title:string;caption:string;altText:string;url:string};
-type Picker={pageIndex:number;insertAt:number;replaceIndex?:number}|undefined;
+type Selection = {
+  type: "topic" | "subtopic";
+  topicIndex: number;
+  subtopicIndex?: number;
+};
+type Media = {
+  fileName: string;
+  title: string;
+  caption: string;
+  altText: string;
+  url: string;
+};
+const mediaUrl = (url: string) => (/^https?:\/\//i.test(url) ? url : `${API}${url}`);
+type Picker =
+  { pageIndex: number; insertAt: number; replaceIndex?: number } | undefined;
 
-export function ChapterStructureBuilder({chapter,exit}:{chapter:LibraryChapter;exit:()=>void}){
-  const [draft,setDraft]=useState<any>(()=>normaliseChapterContent(chapter.content,chapter)),[selected,setSelected]=useState<Selection>(),[resourceView,setResourceView]=useState<'smart'|'graph'>(),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[media,setMedia]=useState<Media[]>([]),[picker,setPicker]=useState<Picker>(),[dragged,setDragged]=useState<{pageIndex:number;blockIndex:number}>();
-  const node=useMemo(()=>selected?.type==='topic'?draft.topics[selected.topicIndex]:selected?draft.topics[selected.topicIndex]?.subtopics[selected.subtopicIndex!]:undefined,[draft,selected]);
-  const pages=node?(selected?.type==='topic'?node.introductionPages:node.pages):[];
-  const mutate=(fn:(next:any)=>void)=>setDraft((current:any)=>{const next=structuredClone(current);fn(next);return next});
-  const pageAt=(next:any,index:number)=>selected?.type==='topic'?next.topics[selected.topicIndex].introductionPages[index]:next.topics[selected!.topicIndex].subtopics[selected!.subtopicIndex!].pages[index];
-  useEffect(()=>{platformApi.chapterMedia(chapter.id).then(setMedia).catch(()=>setMedia([]))},[chapter.id]);
-  useEffect(()=>{if(selected)setResourceView(undefined)},[selected]);
-  const save=async()=>{setBusy(true);setMessage('');try{const saved=await platformApi.updateChapter(chapter.id,{title:draft.title,description:draft.description,content:draft});setDraft(normaliseChapterContent(saved.content,saved));setMessage('Chapter structure and page layouts saved as Draft.')}catch(error:any){setMessage(error.message)}finally{setBusy(false)}};
-  const addPage=()=>{if(!selected)return;mutate(next=>{const target=selected.type==='topic'?next.topics[selected.topicIndex].introductionPages:next.topics[selected.topicIndex].subtopics[selected.subtopicIndex!].pages;const value=page(selected.type==='topic'?'Topic introduction':'New learning page');value.sequence=target.length+1;if(selected.type==='topic')value.pageType='introduction';target.push(value)})};
-  const uploadImages=async(files:FileList)=>{setBusy(true);setMessage('');try{const added=await platformApi.uploadChapterMedia(chapter.id,files);setMedia(await platformApi.chapterMedia(chapter.id));setMessage(`${added.length} image(s) added to the Chapter Image Library. Use Insert Image on a page to place them.`)}catch(error:any){setMessage(error.message)}finally{setBusy(false)}};
-  const uploadPdf=async(file:File)=>{if(!selected)return;if(file.size>5*1024*1024){setMessage('The PDF exceeds the 5 MB limit.');return}if(file.type!=='application/pdf'||!file.name.toLowerCase().endsWith('.pdf')){setMessage('Only PDF files are accepted.');return}if(node?.document&&!window.confirm(`Replace the existing ${node.document.pageCount}-page PDF?`))return;setBusy(true);setMessage('');try{await platformApi.updateChapter(chapter.id,{title:draft.title,description:draft.description,content:draft});const result=await platformApi.uploadChapterDocument(chapter.id,selected.type,node.id,file);setDraft(normaliseChapterContent(result.chapter.content,result.chapter));setMessage(`${file.name} uploaded as ${result.document.pageCount} read-only page(s).`)}catch(error:any){setMessage(error.message)}finally{setBusy(false)}};
-  const uploadResource=async(type:'smart-notes'|'knowledge-graph',file:File,mode:'append'|'overwrite')=>{const maxMb=type==='smart-notes'?10:5;if(file.size>maxMb*1024*1024){const error=new Error(`The file exceeds the ${maxMb} MB limit.`);setMessage(error.message);throw error}setBusy(true);setMessage('');try{await platformApi.updateChapter(chapter.id,{title:draft.title,description:draft.description,content:draft});const result=await platformApi.uploadChapterResource(chapter.id,type,file,mode);setDraft(normaliseChapterContent(result.chapter.content,result.chapter));setMessage(`${type==='smart-notes'?'Smart Notes':'Knowledge Graph'} uploaded successfully.`)}catch(error:any){setMessage(error.message);throw error}finally{setBusy(false)}};
-  const ensureBlocks=(target:any)=>{target.blocks??=[];if(!target.blocks.length){const content=target.concepts?.[0]?.explanation?.beginner||'';if(content)target.blocks.push({id:uid('block'),type:'text',content})}};
-  const insertImage=(item:Media)=>{if(!picker)return;mutate(next=>{const target=pageAt(next,picker.pageIndex);ensureBlocks(target);const replaceIndex=picker.replaceIndex??(target.blocks[picker.insertAt]?.type==='image'?picker.insertAt:undefined),previous=replaceIndex===undefined?undefined:target.blocks[replaceIndex],block={id:previous?.id||uid('block'),type:'image',mediaRef:item.fileName,layout:previous?.layout||'centered',size:previous?.size||'medium',caption:item.caption||item.title,altText:item.altText||item.title};if(replaceIndex===undefined)target.blocks.splice(Math.min(picker.insertAt,target.blocks.length),0,block);else target.blocks[replaceIndex]=block;target.mediaRefs=[...new Set([...(target.mediaRefs||[]),item.fileName])]});setPicker(undefined)};
-  const addText=(pageIndex:number,insertAt:number)=>mutate(next=>{const target=pageAt(next,pageIndex);ensureBlocks(target);target.blocks.splice(insertAt,0,{id:uid('block'),type:'text',content:'Add learning content here.'})});
-  const moveBlock=(pageIndex:number,from:number,to:number)=>{if(from===to||from+1===to)return;mutate(next=>{const blocks=pageAt(next,pageIndex).blocks;const [block]=blocks.splice(from,1);blocks.splice(to>from?to-1:to,0,block)})};
-  const drop=(event:DragEvent,pageIndex:number,to:number)=>{event.preventDefault();if(dragged?.pageIndex===pageIndex)moveBlock(pageIndex,dragged.blockIndex,to);setDragged(undefined)};
-  return <section className="structure-builder"><header><button onClick={exit}>← Chapter Library</button><div><small>MANUAL CHAPTER AUTHORING</small><h1>{draft.title}</h1></div><button className="primary" disabled={busy} onClick={save}>Save Draft</button></header>{message&&<p className="builder-message">{message}</p>}<div className="structure-layout"><aside><button className="add-root" onClick={()=>mutate(next=>next.topics.push(topic(next.topics.length+1)))}>+ Add Topic</button><button className={`add-root chapter-resource-button ${resourceView==='smart'?'active':''}`} onClick={()=>{setSelected(undefined);setResourceView('smart')}}>+ Add Smart Notes</button><button className={`add-root chapter-resource-button ${resourceView==='graph'?'active':''}`} onClick={()=>{setSelected(undefined);setResourceView('graph')}}>+ Add Knowledge Graph</button>{draft.topics.map((item:any,ti:number)=><details open key={item.id}><summary onClick={()=>setSelected({type:'topic',topicIndex:ti})}><b>{item.title}</b><span>{item.subtopics.length} subtopic(s)</span></summary><div><button onClick={()=>setSelected({type:'topic',topicIndex:ti})}>Topic pages</button>{item.subtopics.map((sub:any,si:number)=><button className={selected?.type==='subtopic'&&selected.topicIndex===ti&&selected.subtopicIndex===si?'active':''} onClick={()=>setSelected({type:'subtopic',topicIndex:ti,subtopicIndex:si})} key={sub.id}>{sub.title}</button>)}<button className={selected?.type==='topic'&&selected.topicIndex===ti?'active':''} onClick={()=>setSelected({type:'topic',topicIndex:ti})}>✓ Check Your Knowledge ({(item.knowledgeCheck?.type1Questions?.length||0)+(item.knowledgeCheck?.type2Questions?.length||0)})</button><button onClick={()=>mutate(next=>next.topics[ti].subtopics.push(subtopic(next.topics[ti].subtopics.length+1)))}>+ Add Subtopic</button><button className="danger-link" onClick={()=>{if(window.confirm(`Delete Topic “${item.title}” and all its content?`)){mutate(next=>next.topics.splice(ti,1));setSelected(undefined)}}}>Delete Topic</button></div></details>)}</aside><main>{resourceView?<ChapterResourcesEditor view={resourceView} smartNotes={draft.smartNotes} knowledgeGraph={draft.knowledgeGraph} busy={busy} changeSmart={value=>mutate(next=>next.smartNotes=value)} changeGraph={value=>mutate(next=>next.knowledgeGraph=value)} upload={uploadResource}/>:node?<><section className="node-heading"><small>{selected?.type.toUpperCase()}</small><input value={node.title} onChange={event=>mutate(next=>{const target=selected!.type==='topic'?next.topics[selected!.topicIndex]:next.topics[selected!.topicIndex].subtopics[selected!.subtopicIndex!];target.title=event.target.value})}/>
-<label className="rich-field"><span>Description</span><RichTextEditor placeholder={`${selected?.type==='topic'?'Topic':'Subtopic'} description`} value={node.description||''} onChange={value=>mutate(next=>{const target=selected!.type==='topic'?next.topics[selected!.topicIndex]:next.topics[selected!.topicIndex].subtopics[selected!.subtopicIndex!];target.description=value})}/></label>
-</section><section className="node-actions"><button onClick={addPage}>+ Add Page</button><label>Upload to Image Library<input type="file" multiple accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={event=>event.target.files?.length&&uploadImages(event.target.files)}/></label><label className="pdf-action">{node.document?'Replace PDF':'Upload PDF'}<input type="file" accept="application/pdf,.pdf" onChange={event=>event.target.files?.[0]&&uploadPdf(event.target.files[0])}/></label><small>Images: 15 MB each · PDF: one document, 5 MB maximum</small></section>{selected?.type==='topic'&&<TopicKnowledgeCheckEditor topic={node} change={check=>mutate(next=>next.topics[selected.topicIndex].knowledgeCheck=check)}/>} {node.document?<section className="document-summary"><b>{node.document.fileName}</b><span>{node.document.pageCount} pages · {(node.document.byteSize/1024/1024).toFixed(2)} MB</span><em>Read-only</em></section>:<section className="page-editor-list">{pages.map((item:any,pi:number)=><article className="learning-page-editor" key={item.id}><header><b>Page {pi+1}</b><button onClick={()=>{if(window.confirm('Delete this learning page?'))mutate(next=>{const target=selected!.type==='topic'?next.topics[selected!.topicIndex].introductionPages:next.topics[selected!.topicIndex].subtopics[selected!.subtopicIndex!].pages;target.splice(pi,1);target.forEach((x:any,i:number)=>x.sequence=i+1)})}}>Delete</button></header><input value={item.title} onChange={event=>mutate(next=>{const target=pageAt(next,pi);target.title=event.target.value;if(target.concepts[0])target.concepts[0].title=event.target.value})}/>
-<label className="rich-field"><span>Page description</span><RichTextEditor value={item.description||''} placeholder="Short page introduction" onChange={value=>mutate(next=>pageAt(next,pi).description=value)}/></label>
-{!item.blocks?.length&&
-<label className="rich-field"><span>Learning content</span><RichTextEditor value={item.concepts[0]?.explanation?.beginner||''} placeholder="Learning content" onChange={value=>mutate(next=>{const exp=pageAt(next,pi).concepts[0].explanation;exp.summary=value;exp.quickUnderstanding=value;exp.beginner=value;exp.detailed=value})}/></label>
-}<div className="page-block-toolbar"><button onClick={()=>addText(pi,item.blocks?.length||0)}>+ Text block</button><button onClick={()=>setPicker({pageIndex:pi,insertAt:item.blocks?.length||0})}>+ Insert Image</button><label className="inline-img-btn">📁 Upload Image<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{mutate(next=>{const t=pageAt(next,pi);ensureBlocks(t);t.blocks.splice(t.blocks.length,0,{id:uid('block'),type:'image-inline',src:r.result as string,altText:f.name,caption:''})});e.target.value=''};r.readAsDataURL(f)}}/></label><small>Drag blocks using ⠿ and drop at a blue insertion line.</small></div>{(item.blocks||[]).map((block:any,bi:number)=><div key={block.id}><div className="block-drop-zone" onDragOver={e=>e.preventDefault()} onDrop={e=>drop(e,pi,bi)}>Drop here</div><section className={`page-layout-block ${block.type}`} draggable onDragStart={()=>setDragged({pageIndex:pi,blockIndex:bi})}><span className="drag-handle">⠿</span>{block.type==='text'?
-<RichTextEditor value={block.content} placeholder="Learning page text" onChange={value=>mutate(next=>pageAt(next,pi).blocks[bi].content=value)}/>
-:block.type==='image-inline'?<><img src={block.src} alt={block.altText} style={{maxWidth:'100%',borderRadius:'6px'}}/><div><input aria-label="Caption" placeholder="Caption" value={block.caption||''} onChange={event=>mutate(next=>pageAt(next,pi).blocks[bi].caption=event.target.value)}/><input aria-label="Alternative text" placeholder="Alternative text" value={block.altText||''} onChange={event=>mutate(next=>pageAt(next,pi).blocks[bi].altText=event.target.value)}/></div></>
-:<><img src={`http://localhost:3001${media.find(x=>x.fileName===block.mediaRef)?.url||''}`} alt={block.altText}/><div><b>{block.mediaRef}</b><label>Layout<select value={block.layout} onChange={event=>mutate(next=>pageAt(next,pi).blocks[bi].layout=event.target.value)}><option value="image-left">Image left</option><option value="image-right">Image right</option><option value="centered">Centred</option><option value="full-width">Full width</option></select></label><label>Size<select value={block.size} onChange={event=>mutate(next=>pageAt(next,pi).blocks[bi].size=event.target.value)}><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select></label><input aria-label="Caption" placeholder="Caption" value={block.caption} onChange={event=>mutate(next=>pageAt(next,pi).blocks[bi].caption=event.target.value)}/><input aria-label="Alternative text" placeholder="Alternative text" value={block.altText} onChange={event=>mutate(next=>pageAt(next,pi).blocks[bi].altText=event.target.value)}/><button onClick={()=>setPicker({pageIndex:pi,insertAt:bi})}>Replace</button></div></>}<button className="remove-block" onClick={()=>mutate(next=>pageAt(next,pi).blocks.splice(bi,1))}>×</button></section></div>)}{item.blocks?.length>0&&<div className="block-drop-zone" onDragOver={e=>e.preventDefault()} onDrop={e=>drop(e,pi,item.blocks.length)}>Drop at end</div>}</article>)}</section>}{selected?.type==='subtopic'&&<button className="delete-node" onClick={()=>{if(window.confirm(`Delete Subtopic “${node.title}” and all its content?`)){mutate(next=>next.topics[selected.topicIndex].subtopics.splice(selected.subtopicIndex!,1));setSelected({type:'topic',topicIndex:selected.topicIndex})}}}>Delete Subtopic</button>}</>:<div className="builder-empty"><h2>Build the Chapter hierarchy</h2><p>Add or select a Topic, then create Subtopics and Learning Pages.</p></div>}</main></div>{picker&&<div className="image-picker-backdrop" onClick={()=>setPicker(undefined)}><section className="image-picker" onClick={e=>e.stopPropagation()}><header><div><small>CHAPTER IMAGE LIBRARY</small><h2>Choose an image placeholder</h2></div><button onClick={()=>setPicker(undefined)}>×</button></header>{media.length?<div>{media.map(item=><button onClick={()=>insertImage(item)} key={item.fileName}><img src={`http://localhost:3001${item.url}`} alt={item.altText}/><span><b>{item.fileName}</b><small>{item.caption||item.title}</small></span></button>)}</div>:<p>No Chapter images are available. Close this window and use Upload to Image Library.</p>}</section></div>}</section>;
+export function ChapterStructureBuilder({
+  chapter,
+  exit,
+}: {
+  chapter: LibraryChapter;
+  exit: () => void;
+}) {
+  const [draft, setDraft] = useState<any>(() =>
+      normaliseChapterContent(chapter.content, chapter),
+    ),
+    [selected, setSelected] = useState<Selection>(),
+    [resourceView, setResourceView] = useState<"smart" | "graph">(),
+    [busy, setBusy] = useState(false),
+    [message, setMessage] = useState(""),
+    [media, setMedia] = useState<Media[]>([]),
+    [picker, setPicker] = useState<Picker>(),
+    [dragged, setDragged] = useState<{
+      pageIndex: number;
+      blockIndex: number;
+    }>();
+  const node = useMemo(
+    () =>
+      selected?.type === "topic"
+        ? draft.topics[selected.topicIndex]
+        : selected
+          ? draft.topics[selected.topicIndex]?.subtopics[
+              selected.subtopicIndex!
+            ]
+          : undefined,
+    [draft, selected],
+  );
+  const pages = node
+    ? selected?.type === "topic"
+      ? node.introductionPages
+      : node.pages
+    : [];
+  const mutate = (fn: (next: any) => void) =>
+    setDraft((current: any) => {
+      const next = structuredClone(current);
+      fn(next);
+      return next;
+    });
+  const pageAt = (next: any, index: number) =>
+    selected?.type === "topic"
+      ? next.topics[selected.topicIndex].introductionPages[index]
+      : next.topics[selected!.topicIndex].subtopics[selected!.subtopicIndex!]
+          .pages[index];
+  useEffect(() => {
+    platformApi
+      .chapterMedia(chapter.id)
+      .then(setMedia)
+      .catch(() => setMedia([]));
+  }, [chapter.id]);
+  useEffect(() => {
+    if (selected) setResourceView(undefined);
+  }, [selected]);
+  const save = async () => {
+    setBusy(true);
+    setMessage("");
+    try {
+      const saved = await platformApi.updateChapter(chapter.id, {
+        title: draft.title,
+        description: draft.description,
+        content: draft,
+      });
+      setDraft(normaliseChapterContent(saved.content, saved));
+      setMessage("Chapter structure and page layouts saved as Draft.");
+    } catch (error: any) {
+      setMessage(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const addPage = () => {
+    if (!selected) return;
+    mutate((next) => {
+      const target =
+        selected.type === "topic"
+          ? next.topics[selected.topicIndex].introductionPages
+          : next.topics[selected.topicIndex].subtopics[selected.subtopicIndex!]
+              .pages;
+      const value = page(
+        selected.type === "topic" ? "Topic introduction" : "New learning page",
+      );
+      value.sequence = target.length + 1;
+      if (selected.type === "topic") value.pageType = "introduction";
+      target.push(value);
+    });
+  };
+  const uploadImages = async (files: FileList) => {
+    setBusy(true);
+    setMessage("");
+    try {
+      const added = await platformApi.uploadChapterMedia(chapter.id, files);
+      setMedia(await platformApi.chapterMedia(chapter.id));
+      setMessage(
+        `${added.length} image(s) added to the Chapter Image Library. Use Insert Image on a page to place them.`,
+      );
+    } catch (error: any) {
+      setMessage(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const uploadPdf = async (file: File) => {
+    if (!selected) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage("The PDF exceeds the 5 MB limit.");
+      return;
+    }
+    if (
+      file.type !== "application/pdf" ||
+      !file.name.toLowerCase().endsWith(".pdf")
+    ) {
+      setMessage("Only PDF files are accepted.");
+      return;
+    }
+    if (
+      node?.document &&
+      !window.confirm(
+        `Replace the existing ${node.document.pageCount}-page PDF?`,
+      )
+    )
+      return;
+    setBusy(true);
+    setMessage("");
+    try {
+      await platformApi.updateChapter(chapter.id, {
+        title: draft.title,
+        description: draft.description,
+        content: draft,
+      });
+      const result = await platformApi.uploadChapterDocument(
+        chapter.id,
+        selected.type,
+        node.id,
+        file,
+      );
+      setDraft(normaliseChapterContent(result.chapter.content, result.chapter));
+      setMessage(
+        `${file.name} uploaded as ${result.document.pageCount} read-only page(s).`,
+      );
+    } catch (error: any) {
+      setMessage(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const uploadResource = async (
+    type: "smart-notes" | "knowledge-graph",
+    file: File,
+    mode: "append" | "overwrite",
+  ) => {
+    const maxMb = type === "smart-notes" ? 10 : 5;
+    if (file.size > maxMb * 1024 * 1024) {
+      const error = new Error(`The file exceeds the ${maxMb} MB limit.`);
+      setMessage(error.message);
+      throw error;
+    }
+    setBusy(true);
+    setMessage("");
+    try {
+      await platformApi.updateChapter(chapter.id, {
+        title: draft.title,
+        description: draft.description,
+        content: draft,
+      });
+      const result = await platformApi.uploadChapterResource(
+        chapter.id,
+        type,
+        file,
+        mode,
+      );
+      setDraft(normaliseChapterContent(result.chapter.content, result.chapter));
+      setMessage(
+        `${type === "smart-notes" ? "Smart Notes" : "Knowledge Graph"} uploaded successfully.`,
+      );
+    } catch (error: any) {
+      setMessage(error.message);
+      throw error;
+    } finally {
+      setBusy(false);
+    }
+  };
+  const ensureBlocks = (target: any) => {
+    target.blocks ??= [];
+    if (!target.blocks.length) {
+      const content = target.concepts?.[0]?.explanation?.beginner || "";
+      if (content)
+        target.blocks.push({ id: uid("block"), type: "text", content });
+    }
+  };
+  const insertImage = (item: Media) => {
+    if (!picker) return;
+    mutate((next) => {
+      const target = pageAt(next, picker.pageIndex);
+      ensureBlocks(target);
+      const replaceIndex =
+          picker.replaceIndex ??
+          (target.blocks[picker.insertAt]?.type === "image"
+            ? picker.insertAt
+            : undefined),
+        previous =
+          replaceIndex === undefined ? undefined : target.blocks[replaceIndex],
+        block = {
+          id: previous?.id || uid("block"),
+          type: "image",
+          mediaRef: item.fileName,
+          layout: previous?.layout || "centered",
+          size: previous?.size || "medium",
+          caption: item.caption || item.title,
+          altText: item.altText || item.title,
+        };
+      if (replaceIndex === undefined)
+        target.blocks.splice(
+          Math.min(picker.insertAt, target.blocks.length),
+          0,
+          block,
+        );
+      else target.blocks[replaceIndex] = block;
+      target.mediaRefs = [
+        ...new Set([...(target.mediaRefs || []), item.fileName]),
+      ];
+    });
+    setPicker(undefined);
+  };
+  const addText = (pageIndex: number, insertAt: number) =>
+    mutate((next) => {
+      const target = pageAt(next, pageIndex);
+      ensureBlocks(target);
+      target.blocks.splice(insertAt, 0, {
+        id: uid("block"),
+        type: "text",
+        content: "Add learning content here.",
+      });
+    });
+  const moveBlock = (pageIndex: number, from: number, to: number) => {
+    if (from === to || from + 1 === to) return;
+    mutate((next) => {
+      const blocks = pageAt(next, pageIndex).blocks;
+      const [block] = blocks.splice(from, 1);
+      blocks.splice(to > from ? to - 1 : to, 0, block);
+    });
+  };
+  const drop = (event: DragEvent, pageIndex: number, to: number) => {
+    event.preventDefault();
+    if (dragged?.pageIndex === pageIndex)
+      moveBlock(pageIndex, dragged.blockIndex, to);
+    setDragged(undefined);
+  };
+  return (
+    <section className="structure-builder">
+      <header>
+        <button onClick={exit}>← Chapter Library</button>
+        <div>
+          <small>MANUAL CHAPTER AUTHORING</small>
+          <h1>{draft.title}</h1>
+        </div>
+        <button className="primary" disabled={busy} onClick={save}>
+          Save Draft
+        </button>
+      </header>
+      {message && <p className="builder-message">{message}</p>}
+      <div className="structure-layout">
+        <aside>
+          <button
+            className="add-root"
+            onClick={() =>
+              mutate((next) => next.topics.push(topic(next.topics.length + 1)))
+            }
+          >
+            + Add Topic
+          </button>
+          <button
+            className={`add-root chapter-resource-button ${resourceView === "smart" ? "active" : ""}`}
+            onClick={() => {
+              setSelected(undefined);
+              setResourceView("smart");
+            }}
+          >
+            + Add Smart Notes
+          </button>
+          <button
+            className={`add-root chapter-resource-button ${resourceView === "graph" ? "active" : ""}`}
+            onClick={() => {
+              setSelected(undefined);
+              setResourceView("graph");
+            }}
+          >
+            + Add Knowledge Graph
+          </button>
+          {draft.topics.map((item: any, ti: number) => (
+            <details open key={item.id}>
+              <summary
+                onClick={() => setSelected({ type: "topic", topicIndex: ti })}
+              >
+                <b>{item.title}</b>
+                <span>{item.subtopics.length} subtopic(s)</span>
+              </summary>
+              <div>
+                <button
+                  onClick={() => setSelected({ type: "topic", topicIndex: ti })}
+                >
+                  Topic pages
+                </button>
+                {item.subtopics.map((sub: any, si: number) => (
+                  <button
+                    className={
+                      selected?.type === "subtopic" &&
+                      selected.topicIndex === ti &&
+                      selected.subtopicIndex === si
+                        ? "active"
+                        : ""
+                    }
+                    onClick={() =>
+                      setSelected({
+                        type: "subtopic",
+                        topicIndex: ti,
+                        subtopicIndex: si,
+                      })
+                    }
+                    key={sub.id}
+                  >
+                    {sub.title}
+                  </button>
+                ))}
+                <button
+                  className={
+                    selected?.type === "topic" && selected.topicIndex === ti
+                      ? "active"
+                      : ""
+                  }
+                  onClick={() => setSelected({ type: "topic", topicIndex: ti })}
+                >
+                  ✓ Check Your Knowledge (
+                  {(item.knowledgeCheck?.type1Questions?.length || 0) +
+                    (item.knowledgeCheck?.type2Questions?.length || 0)}
+                  )
+                </button>
+                <button
+                  onClick={() =>
+                    mutate((next) =>
+                      next.topics[ti].subtopics.push(
+                        subtopic(next.topics[ti].subtopics.length + 1),
+                      ),
+                    )
+                  }
+                >
+                  + Add Subtopic
+                </button>
+                <button
+                  className="danger-link"
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        `Delete Topic “${item.title}” and all its content?`,
+                      )
+                    ) {
+                      mutate((next) => next.topics.splice(ti, 1));
+                      setSelected(undefined);
+                    }
+                  }}
+                >
+                  Delete Topic
+                </button>
+              </div>
+            </details>
+          ))}
+        </aside>
+        <main>
+          {resourceView ? (
+            <ChapterResourcesEditor
+              view={resourceView}
+              smartNotes={draft.smartNotes}
+              knowledgeGraph={draft.knowledgeGraph}
+              busy={busy}
+              changeSmart={(value) =>
+                mutate((next) => (next.smartNotes = value))
+              }
+              changeGraph={(value) =>
+                mutate((next) => (next.knowledgeGraph = value))
+              }
+              upload={uploadResource}
+            />
+          ) : node ? (
+            <>
+              <section className="node-heading">
+                <small>{selected?.type.toUpperCase()}</small>
+                <input
+                  value={node.title}
+                  onChange={(event) =>
+                    mutate((next) => {
+                      const target =
+                        selected!.type === "topic"
+                          ? next.topics[selected!.topicIndex]
+                          : next.topics[selected!.topicIndex].subtopics[
+                              selected!.subtopicIndex!
+                            ];
+                      target.title = event.target.value;
+                    })
+                  }
+                />
+                <label className="rich-field">
+                  <span>Description</span>
+                  <RichTextEditor
+                    placeholder={`${selected?.type === "topic" ? "Topic" : "Subtopic"} description`}
+                    value={node.description || ""}
+                    onChange={(value) =>
+                      mutate((next) => {
+                        const target =
+                          selected!.type === "topic"
+                            ? next.topics[selected!.topicIndex]
+                            : next.topics[selected!.topicIndex].subtopics[
+                                selected!.subtopicIndex!
+                              ];
+                        target.description = value;
+                      })
+                    }
+                  />
+                </label>
+              </section>
+              <section className="node-actions">
+                <button onClick={addPage}>+ Add Page</button>
+                <label>
+                  Upload to Image Library
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    onChange={(event) =>
+                      event.target.files?.length &&
+                      uploadImages(event.target.files)
+                    }
+                  />
+                </label>
+                <label className="pdf-action">
+                  {node.document ? "Replace PDF" : "Upload PDF"}
+                  <input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    onChange={(event) =>
+                      event.target.files?.[0] &&
+                      uploadPdf(event.target.files[0])
+                    }
+                  />
+                </label>
+                <small>
+                  Images: 15 MB each · PDF: one document, 5 MB maximum
+                </small>
+              </section>
+              {selected?.type === "topic" && (
+                <TopicKnowledgeCheckEditor
+                  topic={node}
+                  change={(check) =>
+                    mutate(
+                      (next) =>
+                        (next.topics[selected.topicIndex].knowledgeCheck =
+                          check),
+                    )
+                  }
+                />
+              )}{" "}
+              {node.document ? (
+                <section className="document-summary">
+                  <b>{node.document.fileName}</b>
+                  <span>
+                    {node.document.pageCount} pages ·{" "}
+                    {(node.document.byteSize / 1024 / 1024).toFixed(2)} MB
+                  </span>
+                  <em>Read-only</em>
+                </section>
+              ) : (
+                <section className="page-editor-list">
+                  {pages.map((item: any, pi: number) => (
+                    <article className="learning-page-editor" key={item.id}>
+                      <header>
+                        <b>Page {pi + 1}</b>
+                        <button
+                          onClick={() => {
+                            if (window.confirm("Delete this learning page?"))
+                              mutate((next) => {
+                                const target =
+                                  selected!.type === "topic"
+                                    ? next.topics[selected!.topicIndex]
+                                        .introductionPages
+                                    : next.topics[selected!.topicIndex]
+                                        .subtopics[selected!.subtopicIndex!]
+                                        .pages;
+                                target.splice(pi, 1);
+                                target.forEach(
+                                  (x: any, i: number) => (x.sequence = i + 1),
+                                );
+                              });
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </header>
+                      <input
+                        value={item.title}
+                        onChange={(event) =>
+                          mutate((next) => {
+                            const target = pageAt(next, pi);
+                            target.title = event.target.value;
+                            if (target.concepts[0])
+                              target.concepts[0].title = event.target.value;
+                          })
+                        }
+                      />
+                      <label className="rich-field">
+                        <span>Page description</span>
+                        <RichTextEditor
+                          value={item.description || ""}
+                          placeholder="Short page introduction"
+                          onChange={(value) =>
+                            mutate(
+                              (next) => (pageAt(next, pi).description = value),
+                            )
+                          }
+                        />
+                      </label>
+                      {!item.blocks?.length && (
+                        <label className="rich-field">
+                          <span>Learning content</span>
+                          <RichTextEditor
+                            value={
+                              item.concepts[0]?.explanation?.beginner || ""
+                            }
+                            placeholder="Learning content"
+                            onChange={(value) =>
+                              mutate((next) => {
+                                const exp = pageAt(next, pi).concepts[0]
+                                  .explanation;
+                                exp.summary = value;
+                                exp.quickUnderstanding = value;
+                                exp.beginner = value;
+                                exp.detailed = value;
+                              })
+                            }
+                          />
+                        </label>
+                      )}
+                      <div className="page-block-toolbar">
+                        <button
+                          onClick={() => addText(pi, item.blocks?.length || 0)}
+                        >
+                          + Text block
+                        </button>
+                        <button
+                          onClick={() =>
+                            setPicker({
+                              pageIndex: pi,
+                              insertAt: item.blocks?.length || 0,
+                            })
+                          }
+                        >
+                          + Insert Image
+                        </button>
+                        <label className="inline-img-btn">
+                          📁 Upload Image
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: "none" }}
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              if (!f) return;
+                              const r = new FileReader();
+                              r.onload = () => {
+                                mutate((next) => {
+                                  const t = pageAt(next, pi);
+                                  ensureBlocks(t);
+                                  t.blocks.splice(t.blocks.length, 0, {
+                                    id: uid("block"),
+                                    type: "image-inline",
+                                    src: r.result as string,
+                                    altText: f.name,
+                                    caption: "",
+                                  });
+                                });
+                                e.target.value = "";
+                              };
+                              r.readAsDataURL(f);
+                            }}
+                          />
+                        </label>
+                        <small>
+                          Drag blocks using ⠿ and drop at a blue insertion line.
+                        </small>
+                      </div>
+                      {(item.blocks || []).map((block: any, bi: number) => (
+                        <div key={block.id}>
+                          <div
+                            className="block-drop-zone"
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => drop(e, pi, bi)}
+                          >
+                            Drop here
+                          </div>
+                          <section
+                            className={`page-layout-block ${block.type}`}
+                            draggable
+                            onDragStart={() =>
+                              setDragged({ pageIndex: pi, blockIndex: bi })
+                            }
+                          >
+                            <span className="drag-handle">⠿</span>
+                            {block.type === "text" ? (
+                              <RichTextEditor
+                                value={block.content}
+                                placeholder="Learning page text"
+                                onChange={(value) =>
+                                  mutate(
+                                    (next) =>
+                                      (pageAt(next, pi).blocks[bi].content =
+                                        value),
+                                  )
+                                }
+                              />
+                            ) : block.type === "image-inline" ? (
+                              <>
+                                <img
+                                  src={block.src}
+                                  alt={block.altText}
+                                  style={{
+                                    maxWidth: "100%",
+                                    borderRadius: "6px",
+                                  }}
+                                />
+                                <div>
+                                  <input
+                                    aria-label="Caption"
+                                    placeholder="Caption"
+                                    value={block.caption || ""}
+                                    onChange={(event) =>
+                                      mutate(
+                                        (next) =>
+                                          (pageAt(next, pi).blocks[bi].caption =
+                                            event.target.value),
+                                      )
+                                    }
+                                  />
+                                  <input
+                                    aria-label="Alternative text"
+                                    placeholder="Alternative text"
+                                    value={block.altText || ""}
+                                    onChange={(event) =>
+                                      mutate(
+                                        (next) =>
+                                          (pageAt(next, pi).blocks[bi].altText =
+                                            event.target.value),
+                                      )
+                                    }
+                                  />
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <img
+                                  src={mediaUrl(media.find((x) => x.fileName === block.mediaRef)?.url || "")}
+                                  alt={block.altText}
+                                />
+                                <div>
+                                  <b>{block.mediaRef}</b>
+                                  <label>
+                                    Layout
+                                    <select
+                                      value={block.layout}
+                                      onChange={(event) =>
+                                        mutate(
+                                          (next) =>
+                                            (pageAt(next, pi).blocks[
+                                              bi
+                                            ].layout = event.target.value),
+                                        )
+                                      }
+                                    >
+                                      <option value="image-left">
+                                        Image left
+                                      </option>
+                                      <option value="image-right">
+                                        Image right
+                                      </option>
+                                      <option value="centered">Centred</option>
+                                      <option value="full-width">
+                                        Full width
+                                      </option>
+                                    </select>
+                                  </label>
+                                  <label>
+                                    Size
+                                    <select
+                                      value={block.size}
+                                      onChange={(event) =>
+                                        mutate(
+                                          (next) =>
+                                            (pageAt(next, pi).blocks[bi].size =
+                                              event.target.value),
+                                        )
+                                      }
+                                    >
+                                      <option value="small">Small</option>
+                                      <option value="medium">Medium</option>
+                                      <option value="large">Large</option>
+                                    </select>
+                                  </label>
+                                  <input
+                                    aria-label="Caption"
+                                    placeholder="Caption"
+                                    value={block.caption}
+                                    onChange={(event) =>
+                                      mutate(
+                                        (next) =>
+                                          (pageAt(next, pi).blocks[bi].caption =
+                                            event.target.value),
+                                      )
+                                    }
+                                  />
+                                  <input
+                                    aria-label="Alternative text"
+                                    placeholder="Alternative text"
+                                    value={block.altText}
+                                    onChange={(event) =>
+                                      mutate(
+                                        (next) =>
+                                          (pageAt(next, pi).blocks[bi].altText =
+                                            event.target.value),
+                                      )
+                                    }
+                                  />
+                                  <button
+                                    onClick={() =>
+                                      setPicker({ pageIndex: pi, insertAt: bi })
+                                    }
+                                  >
+                                    Replace
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                            <button
+                              className="remove-block"
+                              onClick={() =>
+                                mutate((next) =>
+                                  pageAt(next, pi).blocks.splice(bi, 1),
+                                )
+                              }
+                            >
+                              ×
+                            </button>
+                          </section>
+                        </div>
+                      ))}
+                      {item.blocks?.length > 0 && (
+                        <div
+                          className="block-drop-zone"
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => drop(e, pi, item.blocks.length)}
+                        >
+                          Drop at end
+                        </div>
+                      )}
+                    </article>
+                  ))}
+                </section>
+              )}
+              {selected?.type === "subtopic" && (
+                <button
+                  className="delete-node"
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        `Delete Subtopic “${node.title}” and all its content?`,
+                      )
+                    ) {
+                      mutate((next) =>
+                        next.topics[selected.topicIndex].subtopics.splice(
+                          selected.subtopicIndex!,
+                          1,
+                        ),
+                      );
+                      setSelected({
+                        type: "topic",
+                        topicIndex: selected.topicIndex,
+                      });
+                    }
+                  }}
+                >
+                  Delete Subtopic
+                </button>
+              )}
+            </>
+          ) : (
+            <div className="builder-empty">
+              <h2>Build the Chapter hierarchy</h2>
+              <p>
+                Add or select a Topic, then create Subtopics and Learning Pages.
+              </p>
+            </div>
+          )}
+        </main>
+      </div>
+      {picker && (
+        <div
+          className="image-picker-backdrop"
+          onClick={() => setPicker(undefined)}
+        >
+          <section
+            className="image-picker"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header>
+              <div>
+                <small>CHAPTER IMAGE LIBRARY</small>
+                <h2>Choose an image placeholder</h2>
+              </div>
+              <button onClick={() => setPicker(undefined)}>×</button>
+            </header>
+            {media.length ? (
+              <div>
+                {media.map((item) => (
+                  <button onClick={() => insertImage(item)} key={item.fileName}>
+                    <img
+                      src={mediaUrl(item.url)}
+                      alt={item.altText}
+                    />
+                    <span>
+                      <b>{item.fileName}</b>
+                      <small>{item.caption || item.title}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p>
+                No Chapter images are available. Close this window and use
+                Upload to Image Library.
+              </p>
+            )}
+          </section>
+        </div>
+      )}
+    </section>
+  );
 }

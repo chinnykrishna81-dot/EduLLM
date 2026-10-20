@@ -612,7 +612,7 @@ export class QuestionBankService {
             input: [
               {
                 role: 'system',
-                content: 'Classify educational questions. Return JSON only: {"questions":[{"id":"","topicId":"","subtopicId":"","type":"type1|type2","format":"mcq|true_false|fill_blank|one_line|match|sequence|guided","marks":1,"difficulty":"easy|medium|hard","patternId":"","duplicateStatus":"unique|near_duplicate|same_pattern|review_required","duplicateOf":null,"duplicateGroupId":null,"duplicateReason":"","duplicateConfidence":0.0}]}. Do not delete or merge records.'
+                content: 'Classify educational questions. Return JSON only: {"questions":[{"id":"","topicId":"","subtopicId":"","type":"type1|type2","format":"mcq|true_false|fill_blank|one_line|match|sequence|guided","marks":1,"difficulty":"easy|medium|hard|competency","patternId":"","duplicateStatus":"unique|near_duplicate|same_pattern|review_required","duplicateOf":null,"duplicateGroupId":null,"duplicateReason":"","duplicateConfidence":0.0}]}. Use competency only for Type 2 competency-based questions. Do not delete or merge records.'
               },
               {
                 role: 'user',
