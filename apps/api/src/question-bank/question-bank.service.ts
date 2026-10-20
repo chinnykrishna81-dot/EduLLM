@@ -144,6 +144,7 @@ export class QuestionBankService {
           .filter(Boolean)
       );
     return {
+      generatedAt:new Date().toISOString(),
       total: questions.length,
       approved: questions.filter((q: any) => q.status === 'approved').length,
       staged: questions.filter((q: any) => q.status === 'staged').length,

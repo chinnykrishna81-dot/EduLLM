@@ -852,29 +852,15 @@ function StatsView({ chapterId, questions, topics, refreshKey }: { chapterId: st
   const [cycleConfig, setCycleConfig] = useState<any>(null);
 
   useEffect(() => {
-    lms<StatsSnapshot | null>(`/question-bank/chapters/${chapterId}/statistics`)
-      .then(s => setLastSaved(s?.generatedAt ?? null))
-      .catch(() => {});
+    lms<any>(`/question-bank/chapters/${chapterId}/statistics`).then(value=>setLastSaved(value?.generatedAt||null)).catch(()=>{});
     lms<any>(`/catalogue/chapters/${chapterId}/assessment`)
       .then(c => setCycleConfig(c?.cycleTest || c))
       .catch(() => {});
   }, [chapterId, refreshKey]);
 
-  const live = questions.length ? computeSnapshot(questions, topics) : null;
-
-  const save = async () => {
-    if (!live) return;
-    setSaving(true); setErr('');
-    try {
-      const saved = await lms<StatsSnapshot>(`/chapters/${chapterId}/questions/stats`, {
-        method: 'POST', body: JSON.stringify(live),
-      });
-      setLastSaved(saved.generatedAt);
-    } catch (e: any) { setErr(e.message); }
-    finally { setSaving(false); }
-  };
-
-  const fmt = (iso: string) => new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+  const live = computeSnapshot(questions, topics);
+  const save=async()=>{setSaving(true);setErr('');try{const saved=await lms<any>(`/chapters/${chapterId}/questions/stats`,{method:'POST',body:JSON.stringify(live)});setLastSaved(saved.generatedAt||new Date().toISOString())}catch(error:any){setErr(error.message)}finally{setSaving(false)}};
+  const fmt=(iso:string)=>new Date(iso).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'});
 
   const totalCycleTest = (live?.type1.byUsage?.find(e => e.name === 'cycle_test')?.count ?? 0)
                        + (live?.type2.byUsage?.find(e => e.name === 'cycle_test')?.count ?? 0);

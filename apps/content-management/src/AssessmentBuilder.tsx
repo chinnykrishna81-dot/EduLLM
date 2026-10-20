@@ -160,6 +160,8 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
     retakeAfterDays:  value?.retakeAfterDays || 30,
     formCycleCount:   value?.formCycleCount || 5,
     practicePercent:  value?.practicePercent ?? 0,
+    competencyQuestionsPerForm: value?.competencyQuestionsPerForm ?? 1,
+    competencyRepeatLimit: value?.competencyRepeatLimit ?? 0,
     greenPercent:     value?.mastery?.greenPercent ?? 90,
     yellowPercent:    value?.mastery?.yellowPercent ?? 60,
     sections:         value?.sections?.length
@@ -285,12 +287,30 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
     const forms = Array.from({length: data.formCycleCount}, (_, formIndex) => {
       const usedInForm   = new Set<string>();
       const groupsInForm = new Set<string>();
+      const competencyTopicsInForm=new Set<string>();
+      const competencyEnabled=data.sections.some((section:any)=>section.questionType==='type2'&&(section.difficulties||ALL_DIFF).includes('competency'));
+      let competencyRemaining=competencyEnabled?Math.max(0,Number(data.competencyQuestionsPerForm||0)):0;
+      const competencyUseCap=1+Math.max(0,Number(data.competencyRepeatLimit||0));
 
       const sections = data.sections.map((section: any) => {
         const pool    = eligible(section);
         const needed  = Number(section.questionsPresented);
-        const sorted  = sortForSection(pool);
-        const chosen  = pickFrom(sorted, needed, usedInForm, groupsInForm);
+        const competencyPool=section.questionType==='type2'?pool.filter((q:any)=>q.difficulty==='competency').sort((a:any,b:any)=>{
+          const topicA=competencyTopicsInForm.has(a.topicId||'unmapped')?1:0,topicB=competencyTopicsInForm.has(b.topicId||'unmapped')?1:0;
+          if(topicA!==topicB)return topicA-topicB;
+          const useA=usageCounts.get(a.id)||0,useB=usageCounts.get(b.id)||0;
+          return useA-useB||String(a.id).localeCompare(String(b.id));
+        }):[];
+        const competencyChosen:any[]=[];
+        for(const q of competencyPool){
+          if(competencyChosen.length>=Math.min(needed,competencyRemaining))break;
+          const group=q.duplicateGroupId||q.id,useCount=usageCounts.get(q.id)||0;
+          if(useCount>=competencyUseCap||usedInForm.has(q.id)||groupsInForm.has(group))continue;
+          competencyChosen.push(q);usedInForm.add(q.id);groupsInForm.add(group);competencyTopicsInForm.add(q.topicId||'unmapped');usageCounts.set(q.id,useCount+1);
+        }
+        competencyRemaining-=competencyChosen.length;
+        const regularPool=pool.filter((q:any)=>q.difficulty!=='competency');
+        const chosen=[...competencyChosen,...pickFrom(sortForSection(regularPool),needed-competencyChosen.length,usedInForm,groupsInForm)];
 
         return {
           sectionId:        section.id,
@@ -299,7 +319,7 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
         };
       });
 
-      return { number: formIndex + 1, status: 'draft', sections };
+      return { number: formIndex + 1, status: 'draft', sections,competencyShortfall:competencyRemaining };
     });
 
     // Build summary stats
@@ -329,6 +349,7 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
         ? `${unusedCount} question(s) not used — increase form count or broaden section criteria to cover the full bank.`
         : 'All eligible questions covered.',
       repeatLines.length ? `Repeats: ${repeatLines.join('; ')}.` : '',
+      forms.some((form:any)=>form.competencyShortfall>0)?`Competency quota could not be filled in ${forms.filter((form:any)=>form.competencyShortfall>0).length} form(s); add more competency questions, allow more repeats, or increase Type 2 capacity.`:'Competency quota satisfied for every form.',
     ].filter(Boolean).join(' '));
   };
 
@@ -360,12 +381,14 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
         ['Result delay hours',      'resultDelayHours', 'number'],
         ['Retake after days',       'retakeAfterDays',  'number'],
         ['Forms in cycle (max 8)', 'formCycleCount',   'number'],
+        ['Competency questions / form','competencyQuestionsPerForm','number'],
+        ['Allowed repeats / competency question','competencyRepeatLimit','number'],
         ['Green at %',              'greenPercent',     'number'],
         ['Yellow at %',             'yellowPercent',    'number'],
       ] as [string,string,string][]).map(([label,key,type])=>
         <label key={key}>{label}
           <input type={type} value={data[key]}
-            min={key==='formCycleCount'?1:undefined}
+            min={key==='formCycleCount'?1:type==='number'?0:undefined}
             max={key==='formCycleCount'?8:undefined}
             onChange={e=>{
               let v:any = type==='number' ? Number(e.target.value) : e.target.value;
@@ -374,6 +397,7 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
             }}/>
         </label>
       )}
+      <p className="practice-pct-hint">Competency questions are Type 2 questions marked with competency complexity. The proposal prioritizes different topics in each form. Allowed repeats means additional uses after the question's first use; 0 prevents reuse across forms.</p>
       {/* Practice composition — full-width row below the grid */}
       <label className="practice-pct-field">
         Practice questions in each form

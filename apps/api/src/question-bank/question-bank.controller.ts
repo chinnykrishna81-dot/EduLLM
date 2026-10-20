@@ -12,6 +12,7 @@ export class QuestionBankController {
   @Get('question-bank/chapters/:chapterId/statistics') statistics(@Param('chapterId') chapterId: string) {
     return this.bank.statistics(chapterId);
   }
+  @Post('question-bank/chapters/:chapterId/statistics') saveStatistics(@Param('chapterId') chapterId:string){return this.bank.statistics(chapterId)}
   @Get('question-bank/chapters/:chapterId/practice') practice(@Param('chapterId') chapterId: string) {
     return this.bank.practice(chapterId);
   }
