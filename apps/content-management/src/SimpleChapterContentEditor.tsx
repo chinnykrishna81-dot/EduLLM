@@ -218,6 +218,9 @@ export function SimpleChapterContentEditor({
 }) {
   const [topics, setTopics] = useState<Topic[]>(() => initTopics(chapter));
   const [selection, setSelection] = useState<Selection>({ topicIndex: 0 });
+  const [expandedTopicIds, setExpandedTopicIds] = useState<Set<string>>(
+    () => new Set(topics[0]?.subtopics.length ? [topics[0].id] : []),
+  );
   const [tab, setTab] = useState<"edit" | "preview">("preview");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -289,6 +292,9 @@ export function SimpleChapterContentEditor({
       ),
     );
     setSelection({ topicIndex, subtopicIndex: nextIndex });
+    setExpandedTopicIds((current) =>
+      new Set(current).add(topics[topicIndex].id),
+    );
     setTab("edit");
   };
   const deleteSubtopic = (topicIndex: number, subtopicIndex: number) => {
@@ -334,18 +340,109 @@ export function SimpleChapterContentEditor({
       <div className="sce-layout">
         <aside className="sce-sidebar">
           <p className="sce-sidebar-label">Topics</p>
-          {topics.map((t, i) => (
-            <div className="sce-topic-group" key={t.id}>
-              <div className={`sce-topic-row ${selection.topicIndex===i&&selection.subtopicIndex===undefined?"active":""}`}>
-                <button className="sce-topic-btn" onClick={()=>setSelection({topicIndex:i})}>{t.title||`Topic ${i+1}`}</button>
-                {topics.length>1&&<button className="sce-del-topic" onClick={()=>deleteTopic(i)} title="Delete topic">×</button>}
+          {topics.map((t, i) =>
+            t.subtopics.length > 0 ? (
+              <details
+                className="sce-topic-folder"
+                key={t.id}
+                onToggle={(event) => {
+                  const isOpen = event.currentTarget.open;
+                  setExpandedTopicIds((current) => {
+                    const next = new Set(current);
+                    if (isOpen) next.add(t.id);
+                    else next.delete(t.id);
+                    return next;
+                  });
+                }}
+                open={expandedTopicIds.has(t.id)}
+              >
+                <summary
+                  className={`sce-topic-folder-summary ${selection.topicIndex === i ? "active" : ""}`}
+                  onClick={() => setSelection({ topicIndex: i })}
+                >
+                  <span className="sce-folder-chevron" aria-hidden="true" />
+                  <span className="sce-folder-icon" aria-hidden="true">
+                    📁
+                  </span>
+                  <span className="sce-folder-title">
+                    {t.title || `Topic ${i + 1}`}
+                  </span>
+                  <span className="sce-folder-count">{t.subtopics.length}</span>
+                  {topics.length > 1 && (
+                    <button
+                      className="sce-del-topic"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        deleteTopic(i);
+                      }}
+                      title="Delete topic"
+                      type="button"
+                    >
+                      ×
+                    </button>
+                  )}
+                </summary>
+                <div className="sce-subtopic-list">
+                  {t.subtopics.map((s, si) => (
+                    <div
+                      className={`sce-subtopic-row ${selection.topicIndex === i && selection.subtopicIndex === si ? "active" : ""}`}
+                      key={s.id}
+                    >
+                      <button
+                        onClick={() =>
+                          setSelection({ topicIndex: i, subtopicIndex: si })
+                        }
+                      >
+                        {s.title}
+                      </button>
+                      <button
+                        className="sce-del-topic"
+                        onClick={() => deleteSubtopic(i, si)}
+                        title="Delete subtopic"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    className="sce-add-subtopic"
+                    onClick={() => addSubtopic(i)}
+                  >
+                    + Add Subtopic
+                  </button>
+                </div>
+              </details>
+            ) : (
+              <div className="sce-topic-group" key={t.id}>
+                <div
+                  className={`sce-topic-row ${selection.topicIndex === i && selection.subtopicIndex === undefined ? "active" : ""}`}
+                >
+                  <button
+                    className="sce-topic-btn"
+                    onClick={() => setSelection({ topicIndex: i })}
+                  >
+                    {t.title || `Topic ${i + 1}`}
+                  </button>
+                  {topics.length > 1 && (
+                    <button
+                      className="sce-del-topic"
+                      onClick={() => deleteTopic(i)}
+                      title="Delete topic"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                <button
+                  className="sce-add-subtopic sce-add-subtopic-empty"
+                  onClick={() => addSubtopic(i)}
+                >
+                  + Add Subtopic
+                </button>
               </div>
-              <div className="sce-subtopic-list">
-                {t.subtopics.map((s,si)=><div className={`sce-subtopic-row ${selection.topicIndex===i&&selection.subtopicIndex===si?"active":""}`} key={s.id}><button onClick={()=>setSelection({topicIndex:i,subtopicIndex:si})}>{s.title}</button><button className="sce-del-topic" onClick={()=>deleteSubtopic(i,si)} title="Delete subtopic">×</button></div>)}
-                <button className="sce-add-subtopic" onClick={()=>addSubtopic(i)}>+ Add Subtopic</button>
-              </div>
-            </div>
-          ))}
+            ),
+          )}
           <button className="sce-add-topic" onClick={addTopic}>
             + Add Topic
           </button>
@@ -354,7 +451,9 @@ export function SimpleChapterContentEditor({
         <main className="sce-main">
           {node && (
             <>
-              <small className="sce-node-kind">{selection.subtopicIndex===undefined?"TOPIC":"SUBTOPIC"}</small>
+              <small className="sce-node-kind">
+                {selection.subtopicIndex === undefined ? "TOPIC" : "SUBTOPIC"}
+              </small>
               <input
                 className="sce-topic-title"
                 value={node.title}
