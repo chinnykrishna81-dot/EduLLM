@@ -135,7 +135,7 @@ export function ChapterLearning({subject,chapter,back,externalPractice}:{subject
       </aside>
       <main ref={mainRef} className="pbp-main">
         {!extra&&page&&<>
-          <div className="pbp-topic-banner"><small>TOPIC {topicIdx+1} OF {groups.length}</small><h1>{page.topicTitle}</h1></div>
+          {introduction&&<div className="pbp-topic-banner"><small>TOPIC {topicIdx+1} OF {groups.length}</small><h1>{page.topicTitle}</h1></div>}
           <article className="topic-webpage">
             {!introduction&&<h1 className="learning-page-primary-title">{primaryTitle}</h1>}
             {page.subtopicDescription&&position===0&&<RichContent className="subtopic-lead" value={page.subtopicDescription}/>}

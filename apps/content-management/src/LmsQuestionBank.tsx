@@ -568,7 +568,7 @@ function computeTypeStats(qs: any[], allQs: any[], topics: any[]): TypeStats {
       .sort((a, b) => sortDesc ? b[1].length - a[1].length : 0)
       .map(([name, list]) => ({ name, count: list.length, questionNums: list.map(qNum) }));
 
-  const patternMap = group(q => q.patternId?.trim() || '(no pattern)');
+  const patternMap = group(q => String(q.patternId || '').trim() || '(no pattern)');
   const patterns = toEntries(patternMap);
   // put (no pattern) last
   patterns.sort((a, b) => a.name === '(no pattern)' ? 1 : b.name === '(no pattern)' ? -1 : b.count - a.count);
@@ -586,7 +586,7 @@ function computeTypeStats(qs: any[], allQs: any[], topics: any[]): TypeStats {
 
   return {
     count: qs.length,
-    withPatternCount: qs.filter(q => q.patternId?.trim()).length,
+    withPatternCount: qs.filter(q => String(q.patternId || '').trim()).length,
     patterns,
     byTopic: toEntries(topicMap),
     byDifficulty: (['easy', 'medium', 'hard', 'competency'] as const)
@@ -774,10 +774,11 @@ function FormAnalysis({ questions, cycleConfig }: { questions: any[]; cycleConfi
       </h4>
 
       <div style={{ display: 'grid', gap: 12 }}>
-        {forms.map((form: any) => {
-          const allEmpty = form.sections.every((s: any) => !s.questionIds.length);
+        {forms.map((form: any, formIndex: number) => {
+          const formSections = Array.isArray(form?.sections) ? form.sections : [];
+          const allEmpty = formSections.every((s: any) => !Array.isArray(s?.questionIds) || s.questionIds.length === 0);
           return (
-            <div key={form.number} style={{ border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
+            <div key={form?.number ?? formIndex} style={{ border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
               <div style={{ background: '#f8fafc', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid #e2e8f0' }}>
                 <span style={{ fontWeight: 700, fontSize: 13, color: '#1e293b' }}>Form {form.number}</span>
                 <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: form.status === 'approved' ? '#f0fdf4' : '#fffbeb', color: statusColor[form.status] || '#64748b', border: `1px solid ${form.status === 'approved' ? '#86efac' : '#fde68a'}` }}>
@@ -787,10 +788,11 @@ function FormAnalysis({ questions, cycleConfig }: { questions: any[]; cycleConfi
               </div>
               {!allEmpty && (
                 <div style={{ padding: '10px 14px', display: 'grid', gap: 8 }}>
-                  {(Array.isArray(form.sections) ? form.sections : []).map((fs: any) => {
+                  {formSections.map((fs: any) => {
                     const sec = sectionById.get(fs.sectionId);
-                    if (!fs.questionIds.length) return null;
-                    const labels = fs.questionIds.map((id: string) => qLabel(id)).filter(Boolean) as string[];
+                    const questionIds = Array.isArray(fs?.questionIds) ? fs.questionIds : [];
+                    if (!questionIds.length) return null;
+                    const labels = questionIds.map((id: string) => qLabel(id)).filter(Boolean) as string[];
                     labels.sort((a: string, b: string) => parseInt(a.slice(1)) - parseInt(b.slice(1)));
                     return (
                       <div key={fs.sectionId} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
