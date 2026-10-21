@@ -1,0 +1,3 @@
+apps/unified-learning/android/gradlew text eol=lf
+apps/unified-learning/android/**/*.gradle text eol=lf
+apps/unified-learning/android/**/*.properties text eol=lf
