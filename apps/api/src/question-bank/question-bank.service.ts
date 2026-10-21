@@ -438,8 +438,8 @@ export class QuestionBankService {
     if (!Array.isArray(items) || !items.length) throw new UnprocessableEntityException('No questions supplied');
     if (items.length > 2000) throw new UnprocessableEntityException('A direct import is limited to 2,000 questions');
     const questions = items as any[];
-    const ids = questions.map((item) => String(item.id || item.questionId || '').trim());
-    if (ids.some((id) => !id) || new Set(ids).size !== ids.length) throw new UnprocessableEntityException('Every question needs one unique Question ID');
+    const sourceIds = questions.map((item) => String(item.id || item.questionId || '').trim());
+    if (sourceIds.some((id) => !id) || new Set(sourceIds).size !== sourceIds.length) throw new UnprocessableEntityException('Every question needs one unique Question ID');
     const invalid = questions.find((item) => !String(item.question || item.questionText || '').trim());
     if (invalid) throw new UnprocessableEntityException(`${invalid.id || invalid.questionId}: question text is required`);
     const client = await pool.connect();
@@ -447,10 +447,21 @@ export class QuestionBankService {
     const name = String(sourceName || 'Direct AI question import').trim();
     try {
       await client.query('BEGIN');
-      const conflicts = await client.query('SELECT question_id FROM question_bank WHERE question_id=ANY($1::varchar[])', [ids]);
-      if (conflicts.rowCount)
+      const sourceConflicts = await client.query('SELECT question_id,chapter_id FROM question_bank WHERE question_id=ANY($1::varchar[])', [sourceIds]);
+      const sameChapterConflicts = sourceConflicts.rows.filter((row) => row.chapter_id === chapterId);
+      if (sameChapterConflicts.length)
         throw new UnprocessableEntityException(
-          `Question ID already exists: ${conflicts.rows
+          `Question ID already exists in this chapter: ${sameChapterConflicts
+            .slice(0, 10)
+            .map((row) => row.question_id)
+            .join(', ')}`
+        );
+      const crossChapterIds = new Set(sourceConflicts.rows.map((row) => row.question_id));
+      const ids = sourceIds.map((id) => crossChapterIds.has(id) ? this.scopedQuestionId(chapterId, id) : id);
+      const scopedConflicts = await client.query('SELECT question_id FROM question_bank WHERE question_id=ANY($1::varchar[])', [ids]);
+      if (scopedConflicts.rowCount)
+        throw new UnprocessableEntityException(
+          `These questions were already imported into this chapter: ${scopedConflicts.rows
             .slice(0, 10)
             .map((row) => row.question_id)
             .join(', ')}`
@@ -481,6 +492,10 @@ export class QuestionBankService {
     } finally {
       client.release();
     }
+  }
+  private scopedQuestionId(chapterId: string, sourceId: string) {
+    const prefix = `${chapterId}:`;
+    return `${prefix}${sourceId.slice(0, Math.max(1, 240 - prefix.length))}`;
   }
   async enrich(chapterId: string, items: any[]) {
     if (!Array.isArray(items) || !items.length) throw new UnprocessableEntityException('No enriched questions supplied');
