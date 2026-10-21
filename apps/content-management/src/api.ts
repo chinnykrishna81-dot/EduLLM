@@ -214,6 +214,9 @@ export const platformApi = {
   assignReviewer: (id:string,reviewerId:string) => request<LibraryChapter>(`/library/chapters/${id}/reviewer`,{method:'PUT',body:JSON.stringify({reviewerId})}),
   submitForReview: (id:string) => request<LibraryChapter>(`/library/chapters/${id}/submit-review`,{method:'POST'}),
   reviewAudit: (id:string) => request<any[]>(`/library/chapters/${id}/review-audit`),
+  reviewItems: (id:string) => request<any[]>(`/library/chapters/${id}/review-items`),
+  saveReviewItem: (id:string,itemKey:string,body:any) => request<any>(`/library/chapters/${id}/review-items/${encodeURIComponent(itemKey)}`,{method:'PUT',body:JSON.stringify(body)}),
+  approveAllReviewItems: (id:string,items:any[]) => request<any[]>(`/library/chapters/${id}/review-items/approve-all`,{method:'POST',body:JSON.stringify({items})}),
   replaceChapterMedia: (chapterId:string,mediaId:string,file:File) => {const form=new FormData();form.append('file',file);return request(`/library/chapters/${chapterId}/media/${mediaId}/replace`,{method:'POST',body:form})},
   chapterMedia: (id: string) =>
     request<

@@ -13,7 +13,7 @@ export class AuthGuard implements CanActivate {
     req.user=user;req.authToken=token;
     if(user.role==='admin')return true;
     if(user.role==='reviewer'){
-      const chapterRoute=/^\/api\/library\/chapters(?:\/[^/]+(?:\/(?:media|cycle-test|review-audit|review-decision|status\/[^/]+))?)?$/.test(path);
+      const chapterRoute=/^\/api\/library\/chapters(?:\/[^/]+(?:\/(?:media|cycle-test|review-audit|review-decision|status\/[^/]+))?)?$/.test(path)||/^\/api\/library\/chapters\/[^/]+\/review-items(?:\/[^/]+)?$/.test(path);
       const replaceImage=/^\/api\/library\/chapters\/[^/]+\/media\/[^/]+\/replace$/.test(path);
       const allowed=chapterRoute||replaceImage||/^\/api\/question-bank\/chapters\/[^/]+$/.test(path)||path.endsWith('/auth/me')||path.endsWith('/auth/logout')||path.endsWith('/auth/change-password');
       if(!allowed)throw new ForbiddenException('Reviewer access is limited to assigned chapters');

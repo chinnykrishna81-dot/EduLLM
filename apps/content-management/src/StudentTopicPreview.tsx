@@ -5,7 +5,7 @@ import './completion-slides.css';
 import './progressive-preview.css';
 import {ChapterLearning} from '../../unified-learning/src/LearningExperience';
 
-export function StudentTopicPreview({chapter,exit,edit}:{chapter:LibraryChapter;exit:()=>void;edit?:()=>void}){
+export function StudentTopicPreview({chapter,exit,edit,cycleReview,checklist,completeReview,canComplete=false,reviewProgress,busy=false}:{chapter:LibraryChapter;exit:()=>void;edit?:()=>void;cycleReview?:()=>void;checklist?:()=>void;completeReview?:()=>void;canComplete?:boolean;reviewProgress?:string;busy?:boolean}){
   const subject={title:chapter.subjectTags?.[0]||'Science',board:chapter.boardTags?.[0]||'',grade:chapter.gradeTags?.[0]||''};
   const [extPractice,setExtPractice]=useState<any>(undefined);
   useEffect(()=>{
@@ -17,7 +17,8 @@ export function StudentTopicPreview({chapter,exit,edit}:{chapter:LibraryChapter;
         setExtPractice({title:'Chapter Practice',instructions:'Practice questions · no marks · immediate feedback',type1Questions:qs.filter((q:any)=>q.type!=='type2'),type2Questions:qs.filter((q:any)=>q.type==='type2')});
       }).catch(()=>setExtPractice(null));
   },[chapter.id]);
-  return <div className="reviewer-student-preview">{edit&&<div className="reviewer-preview-actions"><span>Reviewer preview · student progress is not recorded</span><button onClick={edit}>✎ Edit content</button></div>}<ChapterLearning subject={subject} chapter={chapter} back={exit} externalPractice={extPractice} previewMode/></div>;
+  const reviewing=Boolean(edit||cycleReview||checklist||completeReview);
+  return <div className="reviewer-student-preview">{reviewing&&<div className="reviewer-preview-actions"><span>Reviewer preview · student progress is not recorded</span>{checklist&&<button onClick={checklist}>✓ Review checklist {reviewProgress&&`· ${reviewProgress}`}</button>}{cycleReview&&<button onClick={cycleReview}>Cycle Test forms</button>}{edit&&<button onClick={edit}>✎ Edit content</button>}{completeReview&&<button className="accent" disabled={!canComplete||busy} title={canComplete?'Send the completed review to Admin':'Approve every checklist item first'} onClick={completeReview}>Complete review → Send to Admin</button>}</div>}<ChapterLearning subject={subject} chapter={chapter} back={exit} externalPractice={extPractice} previewMode/></div>;
 }
 
 function SlideStudentTopicPreview({chapter,exit}:{chapter:LibraryChapter;exit:()=>void}){
