@@ -855,9 +855,9 @@ function StatsView({ chapterId, questions, topics, refreshKey }: { chapterId: st
 
   useEffect(() => {
     lms<any>(`/question-bank/chapters/${chapterId}/statistics`).then(value=>setLastSaved(value?.generatedAt||null)).catch(()=>{});
-    lms<any>(`/catalogue/chapters/${chapterId}/assessment`)
+    lms<any>(`/library/chapters/${chapterId}`)
       .then(c => setCycleConfig(c?.cycleTest || c))
-      .catch(() => {});
+      .catch(error => setErr(`Form Analysis could not be loaded: ${error.message}`));
   }, [chapterId, refreshKey]);
 
   const live = computeSnapshot(questions, topics);
