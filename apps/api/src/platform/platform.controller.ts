@@ -18,8 +18,9 @@ export class PlatformController {
   @Post('media-explorer/chapters/:chapterId') @UseInterceptors(FileInterceptor('file',{storage:diskStorage({destination:chapterStorage,filename:(_req,file,cb)=>cb(null,`${randomUUID()}${extname(file.originalname).toLowerCase()}`)}),limits:{fileSize:15*1024*1024},fileFilter:(_req,file,cb)=>cb(null,['image/png','image/jpeg','image/webp','image/svg+xml','image/gif','image/avif','image/bmp'].includes(file.mimetype))})) addMediaExplorer(@Param('chapterId') chapterId:string,@UploadedFile() file:Express.Multer.File,@Body() body:any){return this.mediaExplorer.add(chapterId,file,body)}
   @Post('media-explorer/:id/replace') @UseInterceptors(FileInterceptor('file',{storage:diskStorage({destination:chapterStorage,filename:(_req,file,cb)=>cb(null,`${randomUUID()}${extname(file.originalname).toLowerCase()}`)}),limits:{fileSize:15*1024*1024},fileFilter:(_req,file,cb)=>cb(null,['image/png','image/jpeg','image/webp','image/svg+xml','image/gif','image/avif','image/bmp'].includes(file.mimetype))})) replaceMediaExplorer(@Param('id') id:string,@UploadedFile() file:Express.Multer.File){return this.mediaExplorer.replace(id,file)}
   @Delete('media-explorer/:id') deleteMediaExplorer(@Param('id') id:string){return this.mediaExplorer.remove(id)}
-  @Get('library/chapters') listChapters(){return this.platform.listChapters()}
-  @Get('library/chapters/:id') getChapter(@Param('id') id:string){return this.platform.getChapter(id)}
+  @Get('library/reviewers') reviewers(){return this.platform.reviewers()}
+  @Get('library/chapters') listChapters(@Req() req:any){return this.platform.listChapters(req.user)}
+  @Get('library/chapters/:id') getChapter(@Req() req:any,@Param('id') id:string){return this.platform.getChapter(id,req.user)}
   @Get('library/chapters/:id/media') chapterMedia(@Param('id') id:string){return this.platform.chapterMedia(id)}
   @Post('library/chapters/:id/media') @UseInterceptors(FilesInterceptor('files',75,{storage:diskStorage({destination:chapterStorage,filename:(_req,file,cb)=>cb(null,`${randomUUID()}${extname(file.originalname).toLowerCase()}`)}),limits:{fileSize:15*1024*1024},fileFilter:(_req,file,cb)=>cb(null,['image/png','image/jpeg','image/webp','image/svg+xml','image/gif','image/avif','image/bmp'].includes(file.mimetype))})) uploadChapterMedia(@Param('id') id:string,@UploadedFiles() files:Express.Multer.File[]){return this.platform.uploadChapterMedia(id,files||[])}
   @Post('library/chapters/:id/documents/:nodeType/:nodeId') @UseInterceptors(FileInterceptor('file',{storage:diskStorage({destination:chapterStorage,filename:(_req,_file,cb)=>cb(null,`${randomUUID()}.pdf`)}),limits:{fileSize:5*1024*1024},fileFilter:(_req,file,cb)=>cb(null,file.mimetype==='application/pdf'&&extname(file.originalname).toLowerCase()==='.pdf')})) uploadChapterDocument(@Param('id') id:string,@Param('nodeType') nodeType:string,@Param('nodeId') nodeId:string,@UploadedFile() file:Express.Multer.File){return this.platform.uploadChapterDocument(id,nodeType,nodeId,file)}
@@ -27,12 +28,16 @@ export class PlatformController {
   @Post('library/chapters') createChapter(@Body() body:any){return this.platform.createChapter(body)}
   @Post('library/chapter-packages/validate') validateChapterPackage(@Body() body:any){return this.platform.validateChapterPackage(body)}
   @Post('library/chapter-packages/import') importChapterPackage(@Body() body:any){return this.platform.importChapterPackage(body)}
-  @Put('library/chapters/:id') updateChapter(@Param('id') id:string,@Body() body:any){return this.platform.updateChapter(id,body)}
+  @Put('library/chapters/:id') updateChapter(@Req() req:any,@Param('id') id:string,@Body() body:any){return this.platform.updateChapter(id,body,req.user)}
   @Post('library/chapters/:id/topics') importTopics(@Param('id') id:string,@Body() body:any){return this.platform.importTopics(id,body)}
   @Delete('library/chapters/:id') deleteChapter(@Param('id') id:string){return this.platform.deleteChapter(id)}
-  @Put('library/chapters/:id/cycle-test') updateCycleTest(@Param('id') id:string,@Body() body:any){return this.platform.updateCycleTest(id,body)}
+  @Put('library/chapters/:id/cycle-test') updateCycleTest(@Req() req:any,@Param('id') id:string,@Body() body:any){return this.platform.updateCycleTest(id,body,req.user)}
   @Delete('library/chapters/:id/cycle-test/forms') deleteCycleTestForms(@Param('id') id:string){return this.platform.deleteCycleTestForms(id)}
-  @Patch('library/chapters/:id/status/:status') reviewChapter(@Param('id') id:string,@Param('status') status:string){return this.platform.reviewChapter(id,status)}
+  @Put('library/chapters/:id/reviewer') assignReviewer(@Req() req:any,@Param('id') id:string,@Body() body:any){return this.platform.assignReviewer(id,String(body.reviewerId||''),req.user)}
+  @Post('library/chapters/:id/submit-review') submitForReview(@Req() req:any,@Param('id') id:string){return this.platform.submitForReview(id,req.user)}
+  @Get('library/chapters/:id/review-audit') reviewAudit(@Req() req:any,@Param('id') id:string){return this.platform.reviewAudit(id,req.user)}
+  @Post('library/chapters/:id/media/:mediaId/replace') @UseInterceptors(FileInterceptor('file',{storage:diskStorage({destination:chapterStorage,filename:(_req,file,cb)=>cb(null,`${randomUUID()}${extname(file.originalname).toLowerCase()}`)}),limits:{fileSize:15*1024*1024},fileFilter:(_req,file,cb)=>cb(null,['image/png','image/jpeg','image/webp','image/svg+xml','image/gif','image/avif','image/bmp'].includes(file.mimetype))})) async replaceChapterMedia(@Req() req:any,@Param('id') id:string,@Param('mediaId') mediaId:string,@UploadedFile() file:Express.Multer.File){await this.platform.assertReviewAccess(id,req.user);await this.platform.assertChapterMedia(id,mediaId);const result=await this.mediaExplorer.replace(mediaId,file);await this.platform.logMediaReplacement(id,req.user,mediaId);return result}
+  @Patch('library/chapters/:id/status/:status') reviewChapter(@Req() req:any,@Param('id') id:string,@Param('status') status:string){return this.platform.reviewChapter(id,status,req.user)}
   @Get('subjects') listSubjects(){return this.platform.listSubjects()}
   @Get('subjects/:id') getSubject(@Param('id') id:string){return this.platform.getSubject(id)}
   @Post('subjects') createSubject(@Body() body:any){return this.platform.createSubject(body)}

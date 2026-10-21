@@ -86,7 +86,7 @@ function FpType2({question,num,sectionMarks}:{question:any;num:number;sectionMar
   </div>;
 }
 
-function FormPreview({form,sections,bank,testTitle,durationMinutes,totalMarks}:{
+export function FormPreview({form,sections,bank,testTitle,durationMinutes,totalMarks}:{
   form:any; sections:any[]; bank:any[];
   testTitle:string; durationMinutes:number; totalMarks:number;
 }){
