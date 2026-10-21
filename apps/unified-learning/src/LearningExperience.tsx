@@ -78,13 +78,21 @@ export function ChapterLearning({subject,chapter,back,externalPractice}:{subject
   const toggleTag=(id:string)=>setTagged(prev=>{const next=new Set(prev);next.has(id)?next.delete(id):next.add(id);localStorage.setItem(`edullm-tagged:${chapter.id}`,JSON.stringify([...next]));return next;});
   const doNext=()=>{
     if(!page)return;
+    const subtopicEnds=!nextPage||nextPage.subtopicId!==page.subtopicId;
+    if(subtopicEnds){
+      const subtopicPages=pages.filter((pg:any)=>pg.subtopicId===page.subtopicId);
+      setProgress(p=>({...p,pageCompleted:[...new Set([...p.pageCompleted,...subtopicPages.map((pg:any)=>pg.id)])]}));
+    }
     if(topicEnds&&page.knowledgeCheck&&!cykRev&&!topicDone){
       setProgress(p=>({...p,cykRevealed:[...new Set([...(p.cykRevealed||[]),page.topicId])]}));
       return;
     }
     if(topicEnds){
       const tid=page.topicId,tp=pages.filter((pg:any)=>pg.topicId===tid);
-      setProgress(p=>({...p,pageCompleted:[...new Set([...p.pageCompleted,...tp.map((pg:any)=>pg.id)])],completed:[...new Set([...p.completed,tid])]}));
+      setProgress(p=>{
+        const completedPages=new Set(p.pageCompleted);
+        return tp.every((pg:any)=>completedPages.has(pg.id))?{...p,completed:[...new Set([...p.completed,tid])]}:p;
+      });
     }
     if(isLast){setExtra(sn?'smart':kg?'graph':practiceStep?'practice':'completion');return;}
     const ni=cur+1;
@@ -177,7 +185,7 @@ function TreeNavigation({groups,pages,progress,cykStatus,cur,navigate,activeRef}
         <span ref={isTopicActive&&!subtopics.length?(node=>{activeRef.current=node;}):undefined}>{group.title}</span>
         <strong>⌄</strong>
       </summary>
-      <div>{subtopics.map((sub:any)=>{
+      <div className="sub-topic-list">{subtopics.map((sub:any)=>{
         const idx=pages.findIndex((p:any)=>p.id===sub.pages[0].id);
         const isActive=sub.pages.some((p:any)=>p.id===curPage?.id);
         const subDone=sub.pages.filter((p:any)=>progress.pageCompleted.includes(p.id)).length;

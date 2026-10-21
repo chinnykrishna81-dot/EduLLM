@@ -73,9 +73,10 @@
 .tree-summary strong{color:var(--sap-blue);font-size:11px}
 .tree-summary.locked{opacity:.55;cursor:default}
 .tree-summary.topic-active{background:var(--sap-pale)}
-.sub-topic-btn{width:100%;border:0;border-top:1px solid #edf0f2;background:#fafbfc;display:grid;grid-template-columns:30px 1fr;align-items:center;text-align:left;padding:10px 18px 10px 48px;color:var(--sap-text);font-size:13px;line-height:1.35;cursor:pointer}
+.sub-topic-list{margin:0 14px 8px 32px;border-left:2px solid #c9d9e7;background:#fafbfc}
+.sub-topic-btn{width:100%;border:0;border-top:1px solid #edf0f2;background:#fafbfc;display:grid;grid-template-columns:30px 1fr;align-items:center;text-align:left;padding:10px 14px;color:var(--sap-text);font-size:13px;line-height:1.35;cursor:pointer}
 .sub-topic-btn:hover{background:var(--sap-pale)}
-.sub-topic-btn.sub-active{background:var(--sap-pale);font-weight:750;border-left:3px solid var(--sap-bright);padding-left:45px}
+.sub-topic-btn.sub-active{background:var(--sap-pale);font-weight:750;border-left:3px solid var(--sap-bright);padding-left:11px}
 .sub-topic-btn:disabled{opacity:.42;cursor:default}
 .tree-summary .sap-status,.sub-topic-btn .sap-status{width:20px;height:20px;border-radius:50%;font-size:10px}
 @media(max-width:850px){.pbp-main{max-height:none}.pbp-pager{display:none}}
