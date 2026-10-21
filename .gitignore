@@ -5,6 +5,7 @@ dist/
 coverage/
 *.tsbuildinfo
 *.sha256
+!apps/unified-learning/public/downloads/EduLLM-Android.apk.sha256
 .env
 .env.*
 !.env.example
