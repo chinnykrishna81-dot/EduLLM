@@ -147,8 +147,9 @@ function FormPreview({form,sections,bank,testTitle,durationMinutes,totalMarks}:{
   </div>;
 }
 
-export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close,save}:{
+export function AssessmentBuilder({kind,value,sourceBank=[],topics=[],chapterId,busy,close,save}:{
   kind:'Cycle Test'|'Semester Test'; value:any; sourceBank?:any[];
+  topics?:any[];
   questionCount?:number; chapterId?:string; busy:boolean;
   close:()=>void; save:(value:any)=>Promise<void>|void;
 }){
@@ -162,6 +163,7 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
     practicePercent:  value?.practicePercent ?? 0,
     competencyQuestionsPerForm: value?.competencyQuestionsPerForm ?? 1,
     competencyRepeatLimit: value?.competencyRepeatLimit ?? 0,
+    importantTopicIds: value?.importantTopicIds || [],
     greenPercent:     value?.mastery?.greenPercent ?? 90,
     yellowPercent:    value?.mastery?.yellowPercent ?? 60,
     sections:         value?.sections?.length
@@ -184,6 +186,8 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
   },[mediaChapterId]);
 
   const update = (key:string, next:any) => setData((c:any)=>({...c,[key]:next}));
+  const topicOptions = topics.length ? topics : [...new Set(data.questionBank.map((q:any)=>q.topicId).filter(Boolean))].map(id=>({id,title:id}));
+  const unmappedQuestions = data.questionBank.filter((q:any)=>!q.topicId).length;
 
   // Keep form count in sync
   useEffect(()=>{
@@ -249,19 +253,34 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
     // Track usage across the complete test. Type 2 questions can qualify for
     // multiple sections, so section-local counts can leave questions unused.
     const usageCounts = new Map<string, number>();
+    const topicUsage = new Map<string, number>();
+    const patternUsage = new Map<string, number>();
+    const importantTopics = new Set<string>(data.importantTopicIds || []);
 
     const isPractice = (q: any) => (q.usage || []).includes('chapter_practice');
+    const topicKey = (q:any) => q.topicId || `pattern:${q.patternId || 'unmapped'}`;
+    const patternKey = (q:any) => q.patternId || q.id;
+    const topicWeight = (q:any) => importantTopics.has(q.topicId) ? 1.5 : 1;
 
     // Sort priority within a section:
     //   1. Truly unused in this section (count=0) AND not a practice question → exhausted first
     //   2. Unused in this section (count=0) AND is a practice question → practice is secondary pool
     //   3. Already used in this section (count>0) → repeat only as last resort
     //   Within each tier: hard → medium → easy
-    const sortForSection = (pool: any[]) =>
+    const sortForSection = (pool: any[], topicCountsInForm:Map<string,number>, patternCountsInForm:Map<string,number>) =>
       [...pool].sort((a, b) => {
         const ca = usageCounts.get(a.id) || 0, cb = usageCounts.get(b.id) || 0;
         const ua = ca === 0 ? 0 : 1, ub = cb === 0 ? 0 : 1;
         if (ua !== ub) return ua - ub;                    // consume every unused question first
+        const ta=topicKey(a),tb=topicKey(b),wa=topicWeight(a),wb=topicWeight(b);
+        const formTopic=(topicCountsInForm.get(ta)||0)/wa-(topicCountsInForm.get(tb)||0)/wb;
+        if(formTopic!==0)return formTopic;
+        const formPattern=(patternCountsInForm.get(patternKey(a))||0)-(patternCountsInForm.get(patternKey(b))||0);
+        if(formPattern!==0)return formPattern;
+        const totalTopic=(topicUsage.get(ta)||0)/wa-(topicUsage.get(tb)||0)/wb;
+        if(totalTopic!==0)return totalTopic;
+        const totalPattern=(patternUsage.get(patternKey(a))||0)-(patternUsage.get(patternKey(b))||0);
+        if(totalPattern!==0)return totalPattern;
         const pa = isPractice(a) ? 1 : 0, pb = isPractice(b) ? 1 : 0;
         if (ua === 0 && pa !== pb) return pa - pb;
         const difficulty = (DIFF_WEIGHT[a.difficulty || 'medium'] ?? 1) - (DIFF_WEIGHT[b.difficulty || 'medium'] ?? 1);
@@ -270,16 +289,24 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
         return String(a.id).localeCompare(String(b.id));
       });
 
-    const pickFrom = (sorted: any[], need: number, usedInForm: Set<string>, groupsInForm: Set<string>) => {
+    const pickFrom = (pool:any[], need:number, usedInForm:Set<string>, groupsInForm:Set<string>, topicCountsInForm:Map<string,number>, patternCountsInForm:Map<string,number>, allowed?:(q:any)=>boolean) => {
       const chosen: any[] = [];
-      for (const q of sorted) {
-        if (chosen.length >= need) break;
-        const group = q.duplicateGroupId || q.id;
-        if (usedInForm.has(q.id) || groupsInForm.has(group)) continue;
+      while(chosen.length<need){
+        const candidates=sortForSection(pool.filter((q:any)=>{
+          const group=q.duplicateGroupId||q.id;
+          return !usedInForm.has(q.id)&&!groupsInForm.has(group)&&(!allowed||allowed(q));
+        }),topicCountsInForm,patternCountsInForm);
+        const q=candidates[0];
+        if(!q)break;
+        const group=q.duplicateGroupId||q.id,topic=topicKey(q),pattern=patternKey(q);
         chosen.push(q);
         usedInForm.add(q.id);
         groupsInForm.add(group);
         usageCounts.set(q.id, (usageCounts.get(q.id) || 0) + 1);
+        topicCountsInForm.set(topic,(topicCountsInForm.get(topic)||0)+1);
+        patternCountsInForm.set(pattern,(patternCountsInForm.get(pattern)||0)+1);
+        topicUsage.set(topic,(topicUsage.get(topic)||0)+1);
+        patternUsage.set(pattern,(patternUsage.get(pattern)||0)+1);
       }
       return chosen;
     };
@@ -287,7 +314,8 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
     const forms = Array.from({length: data.formCycleCount}, (_, formIndex) => {
       const usedInForm   = new Set<string>();
       const groupsInForm = new Set<string>();
-      const competencyTopicsInForm=new Set<string>();
+      const topicCountsInForm=new Map<string,number>();
+      const patternCountsInForm=new Map<string,number>();
       const competencyEnabled=data.sections.some((section:any)=>section.questionType==='type2'&&(section.difficulties||ALL_DIFF).includes('competency'));
       let competencyRemaining=competencyEnabled?Math.max(0,Number(data.competencyQuestionsPerForm||0)):0;
       const competencyUseCap=1+Math.max(0,Number(data.competencyRepeatLimit||0));
@@ -295,22 +323,11 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
       const sections = data.sections.map((section: any) => {
         const pool    = eligible(section);
         const needed  = Number(section.questionsPresented);
-        const competencyPool=section.questionType==='type2'?pool.filter((q:any)=>q.difficulty==='competency').sort((a:any,b:any)=>{
-          const topicA=competencyTopicsInForm.has(a.topicId||'unmapped')?1:0,topicB=competencyTopicsInForm.has(b.topicId||'unmapped')?1:0;
-          if(topicA!==topicB)return topicA-topicB;
-          const useA=usageCounts.get(a.id)||0,useB=usageCounts.get(b.id)||0;
-          return useA-useB||String(a.id).localeCompare(String(b.id));
-        }):[];
-        const competencyChosen:any[]=[];
-        for(const q of competencyPool){
-          if(competencyChosen.length>=Math.min(needed,competencyRemaining))break;
-          const group=q.duplicateGroupId||q.id,useCount=usageCounts.get(q.id)||0;
-          if(useCount>=competencyUseCap||usedInForm.has(q.id)||groupsInForm.has(group))continue;
-          competencyChosen.push(q);usedInForm.add(q.id);groupsInForm.add(group);competencyTopicsInForm.add(q.topicId||'unmapped');usageCounts.set(q.id,useCount+1);
-        }
+        const competencyPool=section.questionType==='type2'?pool.filter((q:any)=>q.difficulty==='competency'):[];
+        const competencyChosen=pickFrom(competencyPool,Math.min(needed,competencyRemaining),usedInForm,groupsInForm,topicCountsInForm,patternCountsInForm,(q:any)=>(usageCounts.get(q.id)||0)<competencyUseCap);
         competencyRemaining-=competencyChosen.length;
         const regularPool=pool.filter((q:any)=>q.difficulty!=='competency');
-        const chosen=[...competencyChosen,...pickFrom(sortForSection(regularPool),needed-competencyChosen.length,usedInForm,groupsInForm)];
+        const chosen=[...competencyChosen,...pickFrom(regularPool,needed-competencyChosen.length,usedInForm,groupsInForm,topicCountsInForm,patternCountsInForm)];
 
         return {
           sectionId:        section.id,
@@ -410,6 +427,20 @@ export function AssessmentBuilder({kind,value,sourceBank=[],chapterId,busy,close
           </span>
         </div>
       </label>
+      {kind==='Cycle Test'&&<div className="topic-priority-field">
+        <div><b>Topic weightage</b><span>Select important topics to give them approximately 1.5× weight while keeping all other topics balanced.</span></div>
+        <div className="topic-priority-grid">
+          {topicOptions.map((topic:any)=>{
+            const checked=(data.importantTopicIds||[]).includes(topic.id);
+            const count=data.questionBank.filter((q:any)=>q.topicId===topic.id).length;
+            return <label className={checked?'important':''} key={topic.id}>
+              <input type="checkbox" checked={checked} onChange={()=>update('importantTopicIds',checked?(data.importantTopicIds||[]).filter((id:string)=>id!==topic.id):[...(data.importantTopicIds||[]),topic.id])}/>
+              <span><b>{topic.title||topic.id}</b><small>{count} mapped question{count===1?'':'s'}{checked?' · Important':''}</small></span>
+            </label>;
+          })}
+        </div>
+        {unmappedQuestions>0&&<p className="topic-mapping-warning"><b>{unmappedQuestions} question(s) are not mapped to a topic.</b> They will be balanced by Pattern ID until you assign their patterns under Question Bank → Pattern Topics.</p>}
+      </div>}
     </div>
 
     {/* 1 · Section Structure */}
