@@ -8,6 +8,8 @@ import {CycleTestExperience} from './CycleTestExperience';
 const API=import.meta.env.VITE_API_ORIGIN ?? 'http://localhost:3001';
 const statusKey=(chapterId:string)=>`edullm-progress:${chapterId}`;
 type Progress={opened:string[];pageCompleted:string[];completed:string[];resourcesOpened:string[];verified:boolean;mastery:Record<string,'green'|'yellow'|'orange'>;cykRevealed:string[];cycleStartedAt?:string;cycleSubmittedAt?:string;cycleAttempt?:number};
+
+function ReviewCycleTestPreview({chapter}:{chapter:any}){const test=chapter.cycleTest;return <article className="chapter-completion-page"><small>REVIEWER PREVIEW · NO ATTEMPT WILL START</small><h1>{test?.title||'Cycle Test'}</h1>{test?<><div className="cycle-test-facts"><span><b>{test.totalMarks}</b> marks</span><span><b>{test.durationMinutes}</b> minutes</span><span><b>{test.sections?.length||0}</b> sections</span><span><b>{test.forms?.length||0}</b> forms</span></div><p>This is a safe content preview. Use the Cycle Test Forms reviewer to inspect each configured form; no student login, timer, answers, or attempt is created here.</p></>:<p>This Cycle Test has not yet been configured.</p>}</article>}
 type CykState='green'|'yellow'|'grey';
 const blank=():Progress=>({opened:[],pageCompleted:[],completed:[],resourcesOpened:[],verified:false,mastery:{},cykRevealed:[]});
 const readProgress=(id:string):Progress=>{try{return {...blank(),...JSON.parse(localStorage.getItem(statusKey(id))||'{}')}}catch{return blank()}};
@@ -23,7 +25,7 @@ function ChapterFolder({chapter,open}:{chapter:any;open:()=>void}){
   return <details className="sap-chapter-folder"><summary><StatusBox state={progress.verified?'blue':'empty'}/><span><b>{chapter.position}. {chapter.title}</b><small>{groups.length} topic(s)</small></span><i>⌄</i></summary><div>{groups.map((group:any)=>{const complete=topicComplete(group,progress),state=complete?(progress.mastery[group.id]||'blue'):group.pages.some((page:any)=>progress.opened.includes(page.id))?'active':'empty';return <button className="sap-topic-row" onClick={open} key={group.id}><StatusBox state={state}/><span><b>{group.title}</b><small>{group.subtopics.filter((item:any)=>!item.introduction).length} subtopic(s)</small></span><strong>Open ›</strong></button>})}<button className="open-chapter" onClick={open}>Open Chapter</button></div></details>
 }
 
-export function ChapterLearning({subject,chapter,back,externalPractice}:{subject:any;chapter:any;back:()=>void;externalPractice?:any}){
+export function ChapterLearning({subject,chapter,back,externalPractice,previewMode=false}:{subject:any;chapter:any;back:()=>void;externalPractice?:any;previewMode?:boolean}){
   const pages=chapterLearningPages(chapter.content||{topics:[]}) as any[],groups=groupTopics(pages),cp=chapter.content?.chapterPractice,sn=chapter.content?.smartNotes,kg=chapter.content?.knowledgeGraph,initial=useMemo(()=>readProgress(chapter.id),[chapter.id]);
   const cpHasQuestions=((cp?.type1Questions?.length||0)+(cp?.type2Questions?.length||0))>0;
   const [apiPractice,setApiPractice]=useState<any>(null);
@@ -162,7 +164,7 @@ export function ChapterLearning({subject,chapter,back,externalPractice}:{subject
         {extra==='graph'&&kg&&<KnowledgeGraphPage graph={kg} node={()=>{}} next={()=>setExtra(practiceStep?'practice':'completion')}/>}
         {extra==='practice'&&!effectiveCp&&<section className="topic-webpage"><h1>Chapter Practice</h1><p>Loading practice questions…</p></section>}
         {extra==='practice'&&effectiveCp&&<ChapterPractice practice={effectiveCp} mediaFor={mediaFor} node={()=>{}} continueToCompletion={()=>setExtra('completion')} index={practiceIndex} setIndex={setPracticeIndex} filter={practiceFilter} tagged={tagged} toggleTag={toggleTag}/>}
-        {extra==='completion'&&<CycleTestExperience chapter={chapter} verified={progress.verified} verify={verify} onMastery={mastery=>setProgress(current=>({...current,mastery:{...current.mastery,...mastery}}))}/>}
+        {extra==='completion' && (previewMode ? <ReviewCycleTestPreview chapter={chapter}/> : <CycleTestExperience chapter={chapter} verified={progress.verified} verify={verify} onMastery={mastery=>setProgress(current=>({...current,mastery:{...current.mastery,...mastery}}))}/>)}
         {extra&&<div className="pbp-nav"><button className="pbp-prev" onClick={goPrev}>← Back to Chapter</button><span/><span/></div>}
       </main>
     </div>

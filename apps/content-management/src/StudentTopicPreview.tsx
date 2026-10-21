@@ -17,7 +17,7 @@ export function StudentTopicPreview({chapter,exit}:{chapter:LibraryChapter;exit:
         setExtPractice({title:'Chapter Practice',instructions:'Practice questions · no marks · immediate feedback',type1Questions:qs.filter((q:any)=>q.type!=='type2'),type2Questions:qs.filter((q:any)=>q.type==='type2')});
       }).catch(()=>setExtPractice(null));
   },[chapter.id]);
-  return <ChapterLearning subject={subject} chapter={chapter} back={exit} externalPractice={extPractice}/>;
+  return <ChapterLearning subject={subject} chapter={chapter} back={exit} externalPractice={extPractice} previewMode/>;
 }
 
 function SlideStudentTopicPreview({chapter,exit}:{chapter:LibraryChapter;exit:()=>void}){
