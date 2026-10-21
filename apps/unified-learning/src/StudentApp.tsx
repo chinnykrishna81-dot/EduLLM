@@ -25,6 +25,12 @@ interface Topic    { id: string; chapterId: string; title: string; htmlContent: 
 interface Course   { id: string; title: string; description: string; price: number; listPrice?: number; discountPercent?: number; currency: string; status: string; subjects: Subject[]; searchTerms?: string[]; freeTrialDays?: number; }
 interface QuestionStep { id: string; prompt: string; options: string[]; answer: string; marks: number; explanation: string; }
 interface Question { id: string; type: string; format: string; question: string; options: string[]; correctAnswer: string; explanation: string; finalAnswer?: string; marks: number; usage?: string[]; steps?: QuestionStep[]; }
+const portalBanners=[
+  {image:'/banners/edullm-overview.jpeg',eyebrow:'LEARN BEYOND THE TEXTBOOK',title:'Big concepts. Clear thinking.',copy:'Colourful explanations, visual learning and step-by-step solutions.'},
+  {image:'/banners/smart-practice.jpeg',eyebrow:'SMART PRACTICE',title:'Know what to improve next.',copy:'Practise across subjects, track mastery and build confidence with every attempt.'},
+  {image:'/banners/ai-learning-tools.jpeg',eyebrow:'INTERACTIVE LEARNING',title:'Study smarter with guided tools.',copy:'Turn chapters into focused learning, practice and revision journeys.'},
+  {image:'/banners/colourful-chemistry.jpeg',eyebrow:'VISUAL SCIENCE',title:'Make difficult ideas memorable.',copy:'Explore chemistry through vivid examples, clear patterns and connected concepts.'},
+];
 
 // ── API helper ────────────────────────────────────────────────────────────────
 
@@ -152,6 +158,8 @@ function CourseCatalog({ user, subscribed, onSubscribed, onOpen, onAuthNeeded }:
   const [search,setSearch] = useState('');
   const [board,setBoard] = useState('');
   const [grade,setGrade] = useState('');
+  const [banner,setBanner] = useState(0);
+  const [bannerPaused,setBannerPaused] = useState(false);
 
   useEffect(() => {
     api<any[]>('/catalogue/courses', {}, false)
@@ -159,6 +167,7 @@ function CourseCatalog({ user, subscribed, onSubscribed, onOpen, onAuthNeeded }:
       .catch(e => setErr(e.message))
       .finally(() => setLoading(false));
   }, []);
+  useEffect(()=>{if(bannerPaused)return;const timer=window.setInterval(()=>setBanner(value=>(value+1)%portalBanners.length),5500);return()=>window.clearInterval(timer)},[bannerPaused]);
 
   const boards=[...new Set(courses.flatMap(c=>c.subjects.map(s=>s.board)).filter(Boolean))];
   const grades=[...new Set(courses.flatMap(c=>c.subjects.map(s=>s.grade)).filter(Boolean))];
@@ -166,7 +175,11 @@ function CourseCatalog({ user, subscribed, onSubscribed, onOpen, onAuthNeeded }:
 
   return (
     <div className="sa-catalog">
-      <section className="sa-landing-hero"><div><span className="sa-kicker">EDULLM · SMART EXAM PREPARATION</span><h1>Learn with structure.<br/><em>Score with confidence.</em></h1><p>One focused learning system for concepts, practice, revision and exam readiness—built around how students actually improve.</p><button className="sa-landing-primary" onClick={()=>document.getElementById('course-catalog')?.scrollIntoView({behavior:'smooth'})}>Explore courses ↓</button></div><div className="sa-score-orbit"><strong>90%</strong><span>mastery target</span></div></section>
+      <section className="sa-banner-carousel" aria-roledescription="carousel" aria-label="EduLLM features" onMouseEnter={()=>setBannerPaused(true)} onMouseLeave={()=>setBannerPaused(false)}>
+        <div className="sa-banner-track" style={{transform:`translateX(-${banner*100}%)`}}>{portalBanners.map((item,index)=><article className="sa-wallpaper-banner" aria-hidden={banner!==index} key={item.image} style={{backgroundImage:`linear-gradient(90deg,rgba(5,12,48,.82) 0%,rgba(8,16,55,.48) 44%,rgba(4,8,24,.08) 72%),url(${item.image})`}}><div><span>{item.eyebrow}</span><h1>{item.title}</h1><p>{item.copy}</p><button onClick={()=>document.getElementById('course-catalog')?.scrollIntoView({behavior:'smooth'})}>Explore courses →</button></div></article>)}</div>
+        <button className="sa-banner-arrow previous" aria-label="Previous banner" onClick={()=>setBanner(value=>(value-1+portalBanners.length)%portalBanners.length)}>‹</button><button className="sa-banner-arrow next" aria-label="Next banner" onClick={()=>setBanner(value=>(value+1)%portalBanners.length)}>›</button>
+        <div className="sa-banner-dots">{portalBanners.map((item,index)=><button aria-label={`Show banner ${index+1}`} aria-current={banner===index} className={banner===index?'active':''} onClick={()=>setBanner(index)} key={item.image}/>)}</div>
+      </section>
       <section className="sa-feature-strip"><article><b>01 · UNDERSTAND</b><h3>Clear concept journeys</h3><p>Short explanations, visual learning cards and worked examples turn difficult chapters into manageable steps.</p></article><article><b>02 · PRACTISE</b><h3>Pattern-led questions</h3><p>Build accuracy with guided practice that reveals the method, not just the final answer.</p></article><article><b>03 · IMPROVE</b><h3>Feedback that compounds</h3><p>Cycle tests and mastery signals show what to revise next, so every study session has a purpose.</p></article></section>
       <section className="sa-score-banner"><div><span className="sa-kicker">THE EDULLM LEARNING LOOP</span><h2>From “I know this” to “I can score this.”</h2></div><div className="sa-loop"><span>Learn</span><b>→</b><span>Recall</span><b>→</b><span>Apply</span><b>→</b><span>Master</span></div></section>
       <div id="course-catalog" className="sa-section-header">
