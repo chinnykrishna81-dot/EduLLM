@@ -46,11 +46,13 @@ const S = {
   stepMeta: { fontSize:11, color:'#6b8494', marginTop:6 } as const,
 };
 
-function FpType1({question,num,sectionMarks}:{question:any;num:number;sectionMarks:number}){
+function ReviewMedia({refs=[],media=[]}:{refs?:string[];media?:any[]}){const assets=(refs||[]).map(ref=>media.find(item=>item.fileName===ref||item.title===ref)).filter(Boolean);return assets.length?<div className="form-review-media">{assets.map((item:any)=><figure key={item.id||item.fileName}><img src={String(item.url||'').startsWith('http')?item.url:`${API}${item.url}`} alt={item.altText||item.title||item.fileName}/>{item.caption&&<figcaption>{item.caption}</figcaption>}</figure>)}</div>:null}
+function FpType1({question,num,sectionMarks,reviewDetails=false,media=[]}:{question:any;num:number;sectionMarks:number;reviewDetails?:boolean;media?:any[]}){
   const isFill = question.format==='fill_blank'||question.format==='one_line'||(question.options||[]).length===0;
   return <div style={S.qCard}>
     <span style={S.qLabel}>Q{num} · {String(question.format||'MCQ').replace('_',' ').toUpperCase()} · {sectionMarks} mark{sectionMarks!==1?'s':''}</span>
     <p style={S.qText}>{question.question}</p>
+    <ReviewMedia refs={question.mediaRefs} media={media}/>
     {isFill
       ? <div style={S.fillBox}>Your answer: ___________________________</div>
       : <div style={S.optGrid}>
@@ -62,14 +64,16 @@ function FpType1({question,num,sectionMarks}:{question:any;num:number;sectionMar
           ))}
         </div>
     }
+    {reviewDetails&&<aside className="form-answer-review"><b>Correct answer</b><p>{question.correctAnswer||'Not provided'}</p>{question.explanation&&<><b>Explanation</b><p>{question.explanation}</p></>}<ReviewMedia refs={question.answerMediaRefs} media={media}/><ReviewMedia refs={question.explanationMediaRefs} media={media}/></aside>}
   </div>;
 }
 
-function FpType2({question,num,sectionMarks}:{question:any;num:number;sectionMarks:number}){
+function FpType2({question,num,sectionMarks,reviewDetails=false,media=[]}:{question:any;num:number;sectionMarks:number;reviewDetails?:boolean;media?:any[]}){
   const perStep = Math.round((sectionMarks/(question.steps?.length||1))*100)/100;
   return <div style={S.qCard}>
     <span style={S.qLabel}>Q{num} · GUIDED TYPE 2 · {sectionMarks} marks total</span>
     <p style={S.qText}>{question.question}</p>
+    <ReviewMedia refs={question.mediaRefs} media={media}/>
     <p style={S.instr}>Choose or drag one answer for every step.</p>
     {(question.steps||[]).map((step:any,si:number)=>(
       <div key={step.id||si} style={S.stepSec}>
@@ -81,14 +85,16 @@ function FpType2({question,num,sectionMarks}:{question:any;num:number;sectionMar
         </div>
         <div style={S.dropZone}>Drop or select your answer here</div>
         <span style={S.stepMeta}>{perStep} mark{perStep!==1?'s':''}</span>
+        {reviewDetails&&<aside className="form-answer-review"><b>Correct answer</b><p>{step.answer||step.correctAnswer||'Not provided'}</p>{step.explanation&&<><b>Explanation</b><p>{step.explanation}</p></>}<ReviewMedia refs={step.answerMediaRefs} media={media}/><ReviewMedia refs={step.explanationMediaRefs} media={media}/></aside>}
       </div>
     ))}
+    {reviewDetails&&question.finalAnswer&&<aside className="form-answer-review final"><b>Consolidated final answer</b><p>{question.finalAnswer}</p></aside>}
   </div>;
 }
 
-export function FormPreview({form,sections,bank,testTitle,durationMinutes,totalMarks}:{
+export function FormPreview({form,sections,bank,testTitle,durationMinutes,totalMarks,reviewDetails=false,media=[]}:{
   form:any; sections:any[]; bank:any[];
-  testTitle:string; durationMinutes:number; totalMarks:number;
+  testTitle:string; durationMinutes:number; totalMarks:number;reviewDetails?:boolean;media?:any[];
 }){
   let counter = 0;
   const sectionData = sections.map((section,si)=>{
@@ -138,8 +144,8 @@ export function FormPreview({form,sections,bank,testTitle,durationMinutes,totalM
         <div style={{border:'1px solid #d0d8df',borderTop:'none'}}>
           {questions.map((q:any)=>
             q.type==='type1'
-              ? <FpType1 key={q.id} question={q} num={q.globalNum} sectionMarks={section.marksPerQuestion}/>
-              : <FpType2 key={q.id} question={q} num={q.globalNum} sectionMarks={section.marksPerQuestion}/>
+              ? <FpType1 key={q.id} question={q} num={q.globalNum} sectionMarks={section.marksPerQuestion} reviewDetails={reviewDetails} media={media}/>
+              : <FpType2 key={q.id} question={q} num={q.globalNum} sectionMarks={section.marksPerQuestion} reviewDetails={reviewDetails} media={media}/>
           )}
         </div>
       </div>;
