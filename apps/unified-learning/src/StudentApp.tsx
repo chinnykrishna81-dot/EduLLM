@@ -688,6 +688,7 @@ export default function StudentApp() {
           {user && <button className={tab === 'dashboard' ? 'active' : ''} onClick={() => setTab('dashboard')}>My Learning</button>}
         </nav>
         <div className="sa-header-right">
+          <a className="sa-android-download" href="/downloads/EduLLM-Android.apk" download>↓ Android App</a>
           {user
             ? <>
                 <span className="sa-user-name">{user.displayName}</span>

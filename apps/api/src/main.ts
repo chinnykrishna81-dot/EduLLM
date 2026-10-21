@@ -12,7 +12,8 @@ import { readFileSync } from 'node:fs';
 for (const envPath of [resolve(process.cwd(), '.env'), resolve(process.cwd(), '../../.env'), resolve(process.cwd(), 'apps/api/.env')]) { try { const env=readFileSync(envPath,'utf8'); for(const line of env.split(/\r?\n/)){const m=line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);if(m&&!process.env[m[1]])process.env[m[1]]=m[2].replace(/^['"]|['"]$/g,'')}} catch {} }
 
 async function bootstrap() {
-  const allowedOrigins = (process.env.WEB_ORIGINS || process.env.CMS_ORIGIN || 'http://localhost:5174,http://localhost:5175,http://localhost:5176').split(',').map(value => value.trim());
+  const configuredOrigins = (process.env.WEB_ORIGINS || process.env.CMS_ORIGIN || 'http://localhost:5174,http://localhost:5175,http://localhost:5176').split(',').map(value => value.trim());
+  const allowedOrigins = [...new Set([...configuredOrigins,'https://localhost','capacitor://localhost'])];
   const app = await NestFactory.create(AppModule, { cors: { origin: allowedOrigins }, bodyParser: false });
   app.use(express.json({ limit: '100mb' }));
   app.use(express.urlencoded({ extended: true, limit: '100mb' }));

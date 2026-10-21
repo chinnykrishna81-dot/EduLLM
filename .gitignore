@@ -33,7 +33,10 @@ storage/uploads/*
 *.key
 *.p12
 *.pfx
+*.jks
+*.keystore
 .aws/
+private-signing/
 
 # Local archive of superseded packages and handoff artifacts
 archive/
