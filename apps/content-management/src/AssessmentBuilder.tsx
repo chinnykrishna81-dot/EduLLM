@@ -46,7 +46,11 @@ const S = {
   stepMeta: { fontSize:11, color:'#6b8494', marginTop:6 } as const,
 };
 
-function ReviewMedia({refs=[],media=[]}:{refs?:string[];media?:any[]}){const assets=(refs||[]).map(ref=>media.find(item=>item.fileName===ref||item.title===ref)).filter(Boolean);return assets.length?<div className="form-review-media">{assets.map((item:any)=><figure key={item.id||item.fileName}><img src={String(item.url||'').startsWith('http')?item.url:`${API}${item.url}`} alt={item.altText||item.title||item.fileName}/>{item.caption&&<figcaption>{item.caption}</figcaption>}</figure>)}</div>:null}
+const mediaUrl=(item:any)=>String(item?.url||'').startsWith('http')?item.url:`${API}${item?.url||''}`;
+const mediaKey=(value:any)=>String(value||'').split(/[\\/]/).pop()?.toLowerCase().replace(/\.[^.]+$/,'')||'';
+const findReviewMedia=(ref:any,media:any[])=>{const key=mediaKey(typeof ref==='string'?ref:ref?.fileName||ref?.id||ref?.url);return media.find(item=>[item.id,item.fileName,item.originalName,item.title,item.url].some(value=>mediaKey(value)===key))};
+function ReviewMedia({refs=[],media=[]}:{refs?:any[];media?:any[]}){const assets=[...new Map((refs||[]).map(ref=>findReviewMedia(ref,media)).filter(Boolean).map((item:any)=>[item.id||item.fileName,item])).values()];return assets.length?<div className="form-review-media">{assets.map((item:any)=><figure key={item.id||item.fileName}><img src={mediaUrl(item)} alt={item.altText||item.title||item.fileName}/>{item.caption&&<figcaption>{item.caption}</figcaption>}</figure>)}</div>:null}
+function RichReviewHtml({html,media=[]}:{html:any;media?:any[]}){const source=String(html||'');if(!source)return null;const resolved=source.replace(/(<img\b[^>]*\bsrc=["'])([^"']+)(["'][^>]*>)/gi,(_all,start,src,end)=>{if(/^(?:https?:|data:|blob:)/i.test(src))return `${start}${src}${end}`;const item=findReviewMedia(src,media);return `${start}${item?mediaUrl(item):src}${end}`});return <div className="form-review-rich" dangerouslySetInnerHTML={{__html:resolved}}/>}
 function FpType1({question,num,sectionMarks,reviewDetails=false,media=[]}:{question:any;num:number;sectionMarks:number;reviewDetails?:boolean;media?:any[]}){
   const isFill = question.format==='fill_blank'||question.format==='one_line'||(question.options||[]).length===0;
   return <div style={S.qCard}>
@@ -64,7 +68,7 @@ function FpType1({question,num,sectionMarks,reviewDetails=false,media=[]}:{quest
           ))}
         </div>
     }
-    {reviewDetails&&<aside className="form-answer-review"><b>Correct answer</b><p>{question.correctAnswer||'Not provided'}</p>{question.explanation&&<><b>Explanation</b><p>{question.explanation}</p></>}<ReviewMedia refs={question.answerMediaRefs} media={media}/><ReviewMedia refs={question.explanationMediaRefs} media={media}/></aside>}
+    {reviewDetails&&<aside className="form-answer-review"><b>Correct answer</b><RichReviewHtml html={question.correctAnswer||'Not provided'} media={media}/>{question.explanation&&<><b>Explanation</b><RichReviewHtml html={question.explanation} media={media}/></>}<ReviewMedia refs={question.answerMediaRefs} media={media}/><ReviewMedia refs={question.explanationMediaRefs} media={media}/></aside>}
   </div>;
 }
 
@@ -85,10 +89,10 @@ function FpType2({question,num,sectionMarks,reviewDetails=false,media=[]}:{quest
         </div>
         <div style={S.dropZone}>Drop or select your answer here</div>
         <span style={S.stepMeta}>{perStep} mark{perStep!==1?'s':''}</span>
-        {reviewDetails&&<aside className="form-answer-review"><b>Correct answer</b><p>{step.answer||step.correctAnswer||'Not provided'}</p>{step.explanation&&<><b>Explanation</b><p>{step.explanation}</p></>}<ReviewMedia refs={step.answerMediaRefs} media={media}/><ReviewMedia refs={step.explanationMediaRefs} media={media}/></aside>}
+        {reviewDetails&&<aside className="form-answer-review"><b>Correct answer</b><RichReviewHtml html={step.answer||step.correctAnswer||'Not provided'} media={media}/>{step.explanation&&<><b>Explanation</b><RichReviewHtml html={step.explanation} media={media}/></>}<ReviewMedia refs={step.answerMediaRefs} media={media}/><ReviewMedia refs={step.explanationMediaRefs} media={media}/></aside>}
       </div>
     ))}
-    {reviewDetails&&question.finalAnswer&&<aside className="form-answer-review final"><b>Consolidated final answer</b><p>{question.finalAnswer}</p></aside>}
+    {reviewDetails&&(question.finalAnswer||question.explanation)&&<aside className="form-answer-review final"><b>Consolidated answer and explanation</b><RichReviewHtml html={question.finalAnswer||question.explanation} media={media}/><ReviewMedia refs={question.answerMediaRefs} media={media}/><ReviewMedia refs={question.explanationMediaRefs} media={media}/></aside>}
   </div>;
 }
 
