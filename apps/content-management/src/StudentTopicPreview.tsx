@@ -5,7 +5,7 @@ import './completion-slides.css';
 import './progressive-preview.css';
 import {ChapterLearning} from '../../unified-learning/src/LearningExperience';
 
-export function StudentTopicPreview({chapter,exit}:{chapter:LibraryChapter;exit:()=>void}){
+export function StudentTopicPreview({chapter,exit,edit}:{chapter:LibraryChapter;exit:()=>void;edit?:()=>void}){
   const subject={title:chapter.subjectTags?.[0]||'Science',board:chapter.boardTags?.[0]||'',grade:chapter.gradeTags?.[0]||''};
   const [extPractice,setExtPractice]=useState<any>(undefined);
   useEffect(()=>{
@@ -17,7 +17,7 @@ export function StudentTopicPreview({chapter,exit}:{chapter:LibraryChapter;exit:
         setExtPractice({title:'Chapter Practice',instructions:'Practice questions · no marks · immediate feedback',type1Questions:qs.filter((q:any)=>q.type!=='type2'),type2Questions:qs.filter((q:any)=>q.type==='type2')});
       }).catch(()=>setExtPractice(null));
   },[chapter.id]);
-  return <ChapterLearning subject={subject} chapter={chapter} back={exit} externalPractice={extPractice} previewMode/>;
+  return <div className="reviewer-student-preview">{edit&&<div className="reviewer-preview-actions"><span>Reviewer preview · student progress is not recorded</span><button onClick={edit}>✎ Edit content</button></div>}<ChapterLearning subject={subject} chapter={chapter} back={exit} externalPractice={extPractice} previewMode/></div>;
 }
 
 function SlideStudentTopicPreview({chapter,exit}:{chapter:LibraryChapter;exit:()=>void}){
