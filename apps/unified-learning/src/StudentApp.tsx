@@ -577,7 +577,7 @@ function subjectArtwork(name: string) {
 }
 
 function CourseViewer({ course, userId, onBack }: { course: Course; userId: string; onBack: () => void }) {
-  const [selSubject, setSelSubject] = useState<Subject | null>(course.subjects[0] ?? null);
+  const [selSubject, setSelSubject] = useState<Subject | null>(null);
   const [chapters, setChapters]     = useState<Chapter[]>([]);
   const [selChapter, setSelChapter] = useState<Chapter | null>(null);
   const [loadingCh, setLoadingCh]   = useState(false);
@@ -596,6 +596,32 @@ function CourseViewer({ course, userId, onBack }: { course: Course; userId: stri
     return <ChapterLearning subject={{ title: selSubject.name, board: selSubject.board, grade: selSubject.grade }} chapter={selChapter} back={() => setSelChapter(null)} progressScope={`${userId}:${course.id}`} />;
   }
 
+  if (selSubject) {
+    return <div className="cv-shell cv-chapter-screen">
+      <div className="cv-header">
+        <button className="cv-back-btn" onClick={() => setSelSubject(null)}>← All Subjects</button>
+        <h1 className="cv-course-title">{course.title}</h1>
+      </div>
+      <section className="cv-subject-hero">
+        <img src={subjectArtwork(selSubject.name)} alt="" />
+        <div><small>{selSubject.board} · CLASS {selSubject.grade}</small><h1>{selSubject.name}</h1><p>Select a chapter and continue your learning journey.</p></div>
+      </section>
+      {err && <div className="sa-error" style={{ margin: '12px 24px' }}>{err}</div>}
+      {loadingCh && <div className="sa-loading" style={{ padding: 42 }}>Loading chapters…</div>}
+      {!loadingCh && chapters.length === 0 && !err && <div className="sa-empty" style={{ padding: '48px 24px' }}>No chapters published for this subject yet.</div>}
+      {!loadingCh && chapters.length > 0 && <section className="cv-chapter-section">
+        <header><div><small>CHAPTERS</small><h2>Learn one chapter at a time</h2></div><span>{chapters.length} chapter{chapters.length === 1 ? '' : 's'}</span></header>
+        <div className="cv-chapter-tiles">
+          {chapters.map((chapter, index) => <button key={chapter.id} className="cv-chapter-tile" onClick={() => setSelChapter(chapter)}>
+            <span className="cv-tile-num">CHAPTER {index + 1}</span>
+            <strong className="cv-tile-title">{chapter.title}</strong>
+            <span className="cv-tile-cta">Open chapter <b>→</b></span>
+          </button>)}
+        </div>
+      </section>}
+    </div>;
+  }
+
   return (
     <div className="cv-shell">
       <div className="cv-header">
@@ -610,35 +636,19 @@ function CourseViewer({ course, userId, onBack }: { course: Course; userId: stri
         </div>
         <div className="cv-subject-tabs">
           {course.subjects.map(s => (
-            <button key={s.id} className={`cv-subject-tab${selSubject?.id === s.id ? ' active' : ''}`}
+            <button key={s.id} className="cv-subject-tab"
               onClick={() => setSelSubject(s)}>
               <img src={subjectArtwork(s.name)} alt={`${s.name} learning`} />
               <span className="cv-subject-card-copy">
                 <small>{s.board} · CLASS {s.grade}</small>
                 <strong>{s.name}</strong>
-                <em>{selSubject?.id === s.id ? 'Selected subject' : 'Explore chapters'} <b>→</b></em>
+                <em>Explore chapters <b>→</b></em>
               </span>
             </button>
           ))}
         </div>
       </section>
 
-      {err && <div className="sa-error" style={{ margin: '12px 24px' }}>{err}</div>}
-      {loadingCh && <div className="sa-loading" style={{ padding: 32 }}>Loading chapters…</div>}
-
-      {!loadingCh && chapters.length === 0 && !err && (
-        <div className="sa-empty" style={{ padding: '48px 24px' }}>No chapters published for this subject yet.</div>
-      )}
-
-      <div className="cv-chapter-tiles">
-        {chapters.map((ch, i) => (
-          <div key={ch.id} className="cv-chapter-tile" onClick={() => setSelChapter(ch)}>
-            <div className="cv-tile-num">Ch {i + 1}</div>
-            <div className="cv-tile-title">{ch.title}</div>
-            <div className="cv-tile-arrow">→</div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
