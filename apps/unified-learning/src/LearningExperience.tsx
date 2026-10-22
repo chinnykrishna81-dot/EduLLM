@@ -7,27 +7,27 @@ import {CycleTestExperience} from './CycleTestExperience';
 import {FormattedText} from './FormattedText';
 
 const API=import.meta.env.VITE_API_ORIGIN ?? 'http://localhost:3001';
-const statusKey=(chapterId:string)=>`edullm-progress:${chapterId}`;
+const statusKey=(chapterId:string,progressScope:string)=>`edullm-progress:${progressScope}:${chapterId}`;
 type Progress={opened:string[];pageCompleted:string[];completed:string[];resourcesOpened:string[];verified:boolean;mastery:Record<string,'green'|'yellow'|'orange'>;cykRevealed:string[];cycleStartedAt?:string;cycleSubmittedAt?:string;cycleAttempt?:number};
 
 function ReviewCycleTestPreview({chapter}:{chapter:any}){const test=chapter.cycleTest;return <article className="chapter-completion-page"><small>REVIEWER PREVIEW · NO ATTEMPT WILL START</small><h1>{test?.title||'Cycle Test'}</h1>{test?<><div className="cycle-test-facts"><span><b>{test.totalMarks}</b> marks</span><span><b>{test.durationMinutes}</b> minutes</span><span><b>{test.sections?.length||0}</b> sections</span><span><b>{test.forms?.length||0}</b> forms</span></div><p>This is a safe content preview. Use the Cycle Test Forms reviewer to inspect each configured form; no student login, timer, answers, or attempt is created here.</p></>:<p>This Cycle Test has not yet been configured.</p>}</article>}
 type CykState='green'|'yellow'|'grey';
 const blank=():Progress=>({opened:[],pageCompleted:[],completed:[],resourcesOpened:[],verified:false,mastery:{},cykRevealed:[]});
-const readProgress=(id:string):Progress=>{try{return {...blank(),...JSON.parse(localStorage.getItem(statusKey(id))||'{}')}}catch{return blank()}};
+const readProgress=(id:string,progressScope:string,previewMode=false):Progress=>{if(previewMode)return blank();try{return {...blank(),...JSON.parse(localStorage.getItem(statusKey(id,progressScope))||'{}')}}catch{return blank()}};
 
-export function SubjectLearning({subject,back}:{subject:any;back:()=>void}){
+export function SubjectLearning({subject,back,progressScope='anonymous'}:{subject:any;back:()=>void;progressScope?:string}){
   const [chapter,setChapter]=useState<any>();
-  if(chapter)return <ChapterLearning subject={subject} chapter={chapter} back={()=>setChapter(undefined)}/>;
-  return <main className="sap-subject-shell"><header className="sap-subject-head"><button onClick={back}>← Course</button><div><small>PROGRESSIVE SYLLABUS</small><h1>{subject.title}</h1><p>{subject.board} · Class {subject.grade}</p></div><StatusLegend/></header><section className="sap-folder-list">{subject.units.map((unit:any)=><details open className="sap-unit" key={unit.id}><summary><span>{unit.title}</span><small>{unit.chapters.length} chapter(s)</small></summary>{unit.chapters.map((item:any)=><ChapterFolder chapter={item} open={()=>setChapter(item)} key={item.id}/>)}</details>)}</section></main>
+  if(chapter)return <ChapterLearning subject={subject} chapter={chapter} back={()=>setChapter(undefined)} progressScope={progressScope}/>;
+  return <main className="sap-subject-shell"><header className="sap-subject-head"><button onClick={back}>← Course</button><div><small>PROGRESSIVE SYLLABUS</small><h1>{subject.title}</h1><p>{subject.board} · Class {subject.grade}</p></div><StatusLegend/></header><section className="sap-folder-list">{subject.units.map((unit:any)=><details open className="sap-unit" key={unit.id}><summary><span>{unit.title}</span><small>{unit.chapters.length} chapter(s)</small></summary>{unit.chapters.map((item:any)=><ChapterFolder chapter={item} open={()=>setChapter(item)} progressScope={progressScope} key={item.id}/>)}</details>)}</section></main>
 }
 
-function ChapterFolder({chapter,open}:{chapter:any;open:()=>void}){
-  const progress=readProgress(chapter.id),pages=chapter.content?chapterLearningPages(chapter.content):chapter.topicItems||[],groups=groupTopics(pages);
+function ChapterFolder({chapter,open,progressScope}:{chapter:any;open:()=>void;progressScope:string}){
+  const progress=readProgress(chapter.id,progressScope),pages=chapter.content?chapterLearningPages(chapter.content):chapter.topicItems||[],groups=groupTopics(pages);
   return <details className="sap-chapter-folder"><summary><StatusBox state={progress.verified?'blue':'empty'}/><span><b>{chapter.position}. {chapter.title}</b><small>{groups.length} topic(s)</small></span><i>⌄</i></summary><div>{groups.map((group:any)=>{const complete=topicComplete(group,progress),state=complete?(progress.mastery[group.id]||'blue'):group.pages.some((page:any)=>progress.opened.includes(page.id))?'active':'empty';return <button className="sap-topic-row" onClick={open} key={group.id}><StatusBox state={state}/><span><b>{group.title}</b><small>{group.subtopics.filter((item:any)=>!item.introduction).length} subtopic(s)</small></span><strong>Open ›</strong></button>})}<button className="open-chapter" onClick={open}>Open Chapter</button></div></details>
 }
 
-export function ChapterLearning({subject,chapter,back,externalPractice,previewMode=false}:{subject:any;chapter:any;back:()=>void;externalPractice?:any;previewMode?:boolean}){
-  const pages=chapterLearningPages(chapter.content||{topics:[]}) as any[],groups=groupTopics(pages),cp=chapter.content?.chapterPractice,sn=chapter.content?.smartNotes,kg=chapter.content?.knowledgeGraph,initial=useMemo(()=>readProgress(chapter.id),[chapter.id]);
+export function ChapterLearning({subject,chapter,back,externalPractice,previewMode=false,progressScope='anonymous'}:{subject:any;chapter:any;back:()=>void;externalPractice?:any;previewMode?:boolean;progressScope?:string}){
+  const pages=chapterLearningPages(chapter.content||{topics:[]}) as any[],groups=groupTopics(pages),cp=chapter.content?.chapterPractice,sn=chapter.content?.smartNotes,kg=chapter.content?.knowledgeGraph,initial=useMemo(()=>readProgress(chapter.id,progressScope,previewMode),[chapter.id,progressScope,previewMode]);
   const cpHasQuestions=((cp?.type1Questions?.length||0)+(cp?.type2Questions?.length||0))>0;
   const [apiPractice,setApiPractice]=useState<any>(null);
   const initMax=useMemo(()=>{
@@ -47,7 +47,8 @@ export function ChapterLearning({subject,chapter,back,externalPractice,previewMo
   const [practiceIndex,setPracticeIndex]=useState(0);
   const [practiceFilter,setPracticeFilter]=useState<'all'|'type1'|'type2'|'competency'|'tagged'>('all');
   const [openPracticeFolder,setOpenPracticeFolder]=useState<'type1'|'type2'|'competency'|null>(null);
-  const [tagged,setTagged]=useState<Set<string>>(()=>{try{return new Set(JSON.parse(localStorage.getItem(`edullm-tagged:${chapter.id}`)||'[]'))}catch{return new Set<string>()}});
+  const taggedKey=`edullm-tagged:${progressScope}:${chapter.id}`;
+  const [tagged,setTagged]=useState<Set<string>>(()=>{if(previewMode)return new Set<string>();try{return new Set(JSON.parse(localStorage.getItem(taggedKey)||'[]'))}catch{return new Set<string>()}});
   const [progress,setProgress]=useState<Progress>(initial);
   const [cykStatus,setCykStatus]=useState<Record<string,CykState>>({});
   const [media,setMedia]=useState<any[]>([]);
@@ -62,7 +63,7 @@ export function ChapterLearning({subject,chapter,back,externalPractice,previewMo
         setApiPractice({title:'Chapter Practice',instructions:'Practice questions · no marks · immediate feedback',type1Questions:qs.filter((q:any)=>q.type!=='type2'),type2Questions:qs.filter((q:any)=>q.type==='type2')});
       }).catch(()=>{});
   },[chapter.id,cpHasQuestions,externalPractice,extra]);
-  useEffect(()=>{localStorage.setItem(statusKey(chapter.id),JSON.stringify(progress))},[chapter.id,progress]);
+  useEffect(()=>{if(!previewMode)localStorage.setItem(statusKey(chapter.id,progressScope),JSON.stringify(progress))},[chapter.id,progress,progressScope,previewMode]);
   useEffect(()=>{
     const page=pages[cur];
     if(!page)return;
@@ -78,7 +79,7 @@ export function ChapterLearning({subject,chapter,back,externalPractice,previewMo
   const allPracticeQs=[...(effectiveCp?.type1Questions||[]),...(effectiveCp?.type2Questions||[])];
   const guidedPracticeQs=(effectiveCp?.type2Questions||[]).filter((question:any)=>question.difficulty!=='competency');
   const competencyPracticeQs=(effectiveCp?.type2Questions||[]).filter((question:any)=>question.difficulty==='competency');
-  const toggleTag=(id:string)=>setTagged(prev=>{const next=new Set(prev);next.has(id)?next.delete(id):next.add(id);localStorage.setItem(`edullm-tagged:${chapter.id}`,JSON.stringify([...next]));return next;});
+  const toggleTag=(id:string)=>setTagged(prev=>{const next=new Set(prev);next.has(id)?next.delete(id):next.add(id);if(!previewMode)localStorage.setItem(taggedKey,JSON.stringify([...next]));return next;});
   const doNext=()=>{
     if(!page)return;
     const subtopicEnds=!nextPage||nextPage.subtopicId!==page.subtopicId;

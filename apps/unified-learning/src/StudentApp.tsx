@@ -568,7 +568,15 @@ function ChapterDetail({ chapter, subject, onBack }: { chapter: Chapter; subject
 
 // ── Course viewer ─────────────────────────────────────────────────────────────
 
-function CourseViewer({ course, onBack }: { course: Course; onBack: () => void }) {
+function subjectArtwork(name: string) {
+  const value = name.toLowerCase();
+  if (/science|chemistry|physics|biology/.test(value)) return '/banners/colourful-chemistry.jpeg';
+  if (/math|statistics|account/.test(value)) return '/banners/smart-practice.jpeg';
+  if (/computer|technology|coding|informatics/.test(value)) return '/banners/ai-learning-tools.jpeg';
+  return '/banners/edullm-overview.jpeg';
+}
+
+function CourseViewer({ course, userId, onBack }: { course: Course; userId: string; onBack: () => void }) {
   const [selSubject, setSelSubject] = useState<Subject | null>(course.subjects[0] ?? null);
   const [chapters, setChapters]     = useState<Chapter[]>([]);
   const [selChapter, setSelChapter] = useState<Chapter | null>(null);
@@ -585,7 +593,7 @@ function CourseViewer({ course, onBack }: { course: Course; onBack: () => void }
   }, [selSubject?.id]);
 
   if (selChapter && selSubject) {
-    return <ChapterLearning subject={{ title: selSubject.name, board: selSubject.board, grade: selSubject.grade }} chapter={selChapter} back={() => setSelChapter(null)} />;
+    return <ChapterLearning subject={{ title: selSubject.name, board: selSubject.board, grade: selSubject.grade }} chapter={selChapter} back={() => setSelChapter(null)} progressScope={`${userId}:${course.id}`} />;
   }
 
   return (
@@ -595,23 +603,25 @@ function CourseViewer({ course, onBack }: { course: Course; onBack: () => void }
         <h1 className="cv-course-title">{course.title}</h1>
       </div>
 
-      {course.subjects.length > 1 && (
+      <section className="cv-subject-section">
+        <div className="cv-subject-heading">
+          <div><small>YOUR COURSE SUBJECTS</small><h2>Choose a subject to learn</h2></div>
+          <span>{course.subjects.length} subject{course.subjects.length === 1 ? '' : 's'}</span>
+        </div>
         <div className="cv-subject-tabs">
           {course.subjects.map(s => (
             <button key={s.id} className={`cv-subject-tab${selSubject?.id === s.id ? ' active' : ''}`}
               onClick={() => setSelSubject(s)}>
-              {s.name}
-              <small>{s.board} · Class {s.grade}</small>
+              <img src={subjectArtwork(s.name)} alt={`${s.name} learning`} />
+              <span className="cv-subject-card-copy">
+                <small>{s.board} · CLASS {s.grade}</small>
+                <strong>{s.name}</strong>
+                <em>{selSubject?.id === s.id ? 'Selected subject' : 'Explore chapters'} <b>→</b></em>
+              </span>
             </button>
           ))}
         </div>
-      )}
-
-      {selSubject && course.subjects.length === 1 && (
-        <div className="cv-subject-label">
-          {selSubject.name} · {selSubject.board} · Class {selSubject.grade}
-        </div>
-      )}
+      </section>
 
       {err && <div className="sa-error" style={{ margin: '12px 24px' }}>{err}</div>}
       {loadingCh && <div className="sa-loading" style={{ padding: 32 }}>Loading chapters…</div>}
@@ -677,7 +687,7 @@ export default function StudentApp() {
   if (profileOpen && user) return <div className="sa-profile-route"><button className="sa-profile-route-close" onClick={() => setProfileOpen(false)}>✕ Close profile</button><ProfileScreen user={user} onDone={u => setUser(u)} onClose={() => setProfileOpen(false)} /></div>;
 
   if (viewCourse) {
-    return <CourseViewer course={viewCourse} onBack={() => setViewCourse(null)} />;
+    return <CourseViewer course={viewCourse} userId={user?.id || 'guest'} onBack={() => setViewCourse(null)} />;
   }
 
   return (
