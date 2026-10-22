@@ -57,6 +57,9 @@ export class QuestionBankController {
   @Post('question-bank/chapters/:chapterId/enrich') enrich(@Param('chapterId') chapterId: string, @Body() body: any) {
     return this.bank.enrich(chapterId, body.questions || []);
   }
+  @Post('question-bank/chapters/:chapterId/explanations') updateExplanations(@Param('chapterId') chapterId: string, @Body() body: any) {
+    return this.bank.updateExplanations(chapterId, body.questions || []);
+  }
   @Post('question-bank/chapters/:chapterId/direct-import') directImport(@Param('chapterId') chapterId: string, @Body() body: any, @Req() req: any) {
     return this.bank.directImport(chapterId, body.questions, body.sourceName, req.user.id);
   }

@@ -552,6 +552,73 @@ export class QuestionBankService {
       client.release();
     }
   }
+  async updateExplanations(chapterId: string, items: any[]) {
+    if (!Array.isArray(items) || !items.length) throw new UnprocessableEntityException('No explanation updates supplied');
+    if (items.length > 2000) throw new UnprocessableEntityException('A single explanation update is limited to 2,000 questions');
+    const sourceIds = items.map((item) => String(item.id || item.questionId || '').trim());
+    if (sourceIds.some((id) => !id) || new Set(sourceIds).size !== sourceIds.length)
+      throw new UnprocessableEntityException('Every record needs one unique Question ID');
+
+    const candidateIds = [...new Set(sourceIds.flatMap((id) => [id, this.scopedQuestionId(chapterId, id)]))];
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const existing = await client.query(
+        'SELECT * FROM question_bank WHERE chapter_id=$1 AND question_id=ANY($2::varchar[]) FOR UPDATE',
+        [chapterId, candidateIds]
+      );
+      const byId = new Map(existing.rows.map((row) => [row.question_id, row]));
+      const resolved = items.map((item, index) => {
+        const sourceId = sourceIds[index];
+        const row = byId.get(sourceId) || byId.get(this.scopedQuestionId(chapterId, sourceId));
+        if (!row) throw new UnprocessableEntityException(`${sourceId}: Question ID was not found in this chapter`);
+        return { item, sourceId, row };
+      });
+      const resolvedIds = resolved.map(({ row }) => row.question_id);
+      if (new Set(resolvedIds).size !== resolvedIds.length)
+        throw new UnprocessableEntityException('More than one update record resolves to the same question');
+
+      let type1Updated = 0;
+      let type2Updated = 0;
+      for (const { item, sourceId, row } of resolved) {
+        const data = { ...(row.data || {}) };
+        if (row.question_type === 'type2') {
+          const finalAnswer = String(item.finalAnswer || '').trim();
+          const incomingSteps = Array.isArray(item.steps) ? item.steps : [];
+          const existingSteps = Array.isArray(data.steps) ? data.steps : [];
+          if (incomingSteps.length !== existingSteps.length)
+            throw new UnprocessableEntityException(
+              `${sourceId}: Type 2 subquestion count does not match (existing ${existingSteps.length}, uploaded ${incomingSteps.length})`
+            );
+          const hasStepExplanation = incomingSteps.some((step: any) => String(step.explanation || '').trim());
+          if (!finalAnswer && !hasStepExplanation)
+            throw new UnprocessableEntityException(`${sourceId}: Type 2 has no consolidated or subquestion explanations to update`);
+          if (finalAnswer) data.finalAnswer = finalAnswer;
+          data.steps = existingSteps.map((step: any, index: number) => ({
+            ...step,
+            explanation: String(incomingSteps[index].explanation || '').trim() || step.explanation
+          }));
+          type2Updated += 1;
+        } else {
+          const explanation = String(item.explanation || '').trim();
+          if (!explanation) throw new UnprocessableEntityException(`${sourceId}: Type 1 explanation is empty`);
+          data.explanation = explanation;
+          type1Updated += 1;
+        }
+        await client.query('UPDATE question_bank SET data=$2::jsonb,updated_at=now() WHERE question_id=$1', [
+          row.question_id,
+          JSON.stringify(data)
+        ]);
+      }
+      await client.query('COMMIT');
+      return { updated: resolved.length, type1Updated, type2Updated, questionIds: resolvedIds };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
   private cryptoKey() {
     const secret = process.env.AI_KEY_ENCRYPTION_SECRET;
     if (!secret || secret.length < 24) throw new UnprocessableEntityException('Set AI_KEY_ENCRYPTION_SECRET (at least 24 characters) on the API server first');

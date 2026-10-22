@@ -13,6 +13,7 @@ async function lms<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (match) {
     const [, chapterId, rest] = match;
     if (rest === '/questions') unifiedPath = `/question-bank/chapters/${chapterId}${init.method === 'POST' ? '/questions' : ''}`;
+    else if (rest === '/questions/explanations') unifiedPath = `/question-bank/chapters/${chapterId}/explanations`;
     else if (rest === '/questions/stats') unifiedPath = `/question-bank/chapters/${chapterId}/statistics`;
     else if (rest === '/questions/practice') unifiedPath = `/question-bank/chapters/${chapterId}/practice`;
     else if (rest === '/topics') unifiedPath = `/question-bank/chapters/${chapterId}/topics`;
@@ -357,6 +358,97 @@ function ImportJsonModal({
 }
 
 // ── Preview cards — matches index (9).html style ─────────────────────────────
+
+function UpdateExplanationsModal({
+  chapterId, topics, onClose, onDone,
+}: {
+  chapterId: string;
+  topics: any[];
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const jsonRef = useRef<HTMLInputElement>(null);
+  const imgRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<{ total: number; type1: number; type2: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState('');
+  const [err, setErr] = useState('');
+
+  const parseQuestions = async (file: File) => {
+    const parsed = JSON.parse(await file.text());
+    const questions = Array.isArray(parsed) ? parsed : parsed.questions;
+    if (!Array.isArray(questions) || !questions.length) throw new Error('The JSON file does not contain any questions');
+    return questions;
+  };
+
+  const inspect = async () => {
+    const file = jsonRef.current?.files?.[0];
+    if (!file) return;
+    try {
+      const questions = await parseQuestions(file);
+      const type2 = questions.filter((q: any) => q.question_type === 'Type 2' || (q.subquestions || []).length > 0).length;
+      setPreview({ total: questions.length, type1: questions.length - type2, type2 });
+      setErr('');
+    } catch (error: any) {
+      setPreview(null);
+      setErr(error.message || 'Invalid JSON file');
+    }
+  };
+
+  const run = async () => {
+    const file = jsonRef.current?.files?.[0];
+    if (!file) return setErr('Select a JSON file');
+    setBusy(true);
+    setErr('');
+    try {
+      const questions = await parseQuestions(file);
+      const imageFiles = Array.from(imgRef.current?.files || []);
+      setProgress(imageFiles.length ? `Uploading ${imageFiles.length} explanation image(s)...` : 'Checking question IDs...');
+      const urlMap = await uploadImages(chapterId, imageFiles);
+      const topicMap = new Map<string, string>(topics.map((topic: any) => [topic.title.toLowerCase().trim(), topic.id]));
+      const updates = questions.map((question: any) => {
+        const imageUrl = question.explanation_image_ref ? resolveImageUrl(question.explanation_image_ref, urlMap) : undefined;
+        return buildImportPayload(question, imageUrl, topicMap, false);
+      });
+      setProgress(`Updating explanations for ${updates.length} questions...`);
+      const result = await lms<{ updated: number; type1Updated: number; type2Updated: number }>(
+        `/chapters/${chapterId}/questions/explanations`,
+        { method: 'POST', body: JSON.stringify({ questions: updates }) }
+      );
+      onDone(`Updated explanations for ${result.updated} questions (Type 1: ${result.type1Updated}, Type 2: ${result.type2Updated}).`);
+    } catch (error: any) {
+      setErr(error.message || 'Explanation update failed');
+      setBusy(false);
+      setProgress('');
+    }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: '#fff', borderRadius: 12, padding: 28, maxWidth: 520, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,.25)' }}>
+        <h2 style={{ margin: '0 0 8px', fontSize: 18 }}>Update Existing Explanations</h2>
+        <p style={{ margin: '0 0 16px', fontSize: 13, lineHeight: 1.5, color: '#64748b' }}>
+          Select the corrected JSON in the same format used for the initial import. Questions are matched by Question ID. Only Type 1 explanations and Type 2 step/consolidated explanations are changed; questions, answers, IDs, practice selection and Cycle Test forms remain unchanged.
+        </p>
+        <div style={{ background: '#eff6ff', color: '#1e40af', padding: '9px 12px', borderRadius: 7, marginBottom: 16, fontSize: 12 }}>
+          This update is all-or-nothing. If an ID or Type 2 subquestion count does not match, no question is changed.
+        </div>
+        {err && <div style={{ background: '#fef2f2', color: '#dc2626', padding: '8px 12px', borderRadius: 6, marginBottom: 16, fontSize: 13 }}>{err}</div>}
+        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Updated question JSON file</label>
+        <input ref={jsonRef} type="file" accept=".json,application/json" onChange={inspect} disabled={busy} style={{ display: 'block', width: '100%', marginBottom: 8 }} />
+        {preview && <div style={{ fontSize: 12, color: '#475569', marginBottom: 16 }}>{preview.total} records detected — Type 1: {preview.type1}, Type 2: {preview.type2}</div>}
+        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>New explanation images <span style={{ color: '#94a3b8' }}>(optional)</span></label>
+        <input ref={imgRef} type="file" accept="image/*" multiple disabled={busy} style={{ display: 'block', width: '100%', marginBottom: 8 }} />
+        <small style={{ display: 'block', color: '#94a3b8', marginBottom: 18 }}>Select images referenced by explanation_image_ref in the updated JSON.</small>
+        {progress && <div style={{ fontSize: 13, color: '#475569', marginBottom: 14 }}>{progress}</div>}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button className="sb-btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="sb-btn-primary" onClick={run} disabled={!preview || busy}>{busy ? 'Updating...' : 'Update explanations'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
@@ -1099,6 +1191,7 @@ export function LmsQuestionBank({
   const [tab, setTab] = useState<'all' | 'type1' | 'type2' | 'practice' | 'stats' | 'patterns'>('all');
   const [statsKey, setStatsKey] = useState(0);
   const [showImport, setShowImport] = useState(false);
+  const [showExplanationUpdate, setShowExplanationUpdate] = useState(false);
   const [mode, setMode] = useState<'list' | 'preview'>('list');
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -1215,6 +1308,19 @@ export function LmsQuestionBank({
         />
       )}
 
+      {showExplanationUpdate && (
+        <UpdateExplanationsModal
+          chapterId={chapterId}
+          topics={topics}
+          onClose={() => setShowExplanationUpdate(false)}
+          onDone={(message) => {
+            setShowExplanationUpdate(false);
+            setMsg(message);
+            load().catch((error: any) => setMsg(error.message));
+          }}
+        />
+      )}
+
       <div className="sb-breadcrumb">
         <button onClick={onBack}>Subjects</button>
         <span>›</span>
@@ -1238,6 +1344,11 @@ export function LmsQuestionBank({
             <button className="sb-btn-ghost" style={{ padding: '6px 14px', fontSize: 13 }} onClick={() => setShowImport(true)}>
               ↑ Import JSON
             </button>
+            {!cykMode && (
+              <button className="sb-btn-ghost" style={{ padding: '6px 14px', fontSize: 13, borderColor: '#0f766e', color: '#0f766e' }} onClick={() => setShowExplanationUpdate(true)}>
+                Update explanations
+              </button>
+            )}
             <button className="sb-btn-primary" onClick={() => setEditing(newType1(cykMode || false))}>
               + Type 1 {cykMode ? '(CYK)' : '(MCQ)'}
             </button>
