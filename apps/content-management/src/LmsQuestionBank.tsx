@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { QuestionDetailEditor } from './QuestionDetailEditor';
 import { browserId } from './browserId';
+import { FormattedText } from './FormattedText';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import readXlsxFile from 'read-excel-file/browser';
 
@@ -516,7 +517,7 @@ function QuestionCard({ q, index, topics }: { q: any; index: number; topics: any
           <strong style={{ display: 'block', marginBottom: 6, color: '#15803d' }}>
             ✓ Correct answer: {optionLetter(q.correctAnswer)}. {q.correctAnswer}
           </strong>
-          {q.explanation && <div dangerouslySetInnerHTML={{ __html: q.explanation }} style={{ fontSize: 14 }} />}
+          {q.explanation && <FormattedText value={q.explanation} className="question-formatted-explanation" />}
         </div>
       )}
     </article>
@@ -604,7 +605,7 @@ function Type2Card({ q, index, topics }: { q: any; index: number; topics: any[] 
                 <strong style={{ display: 'block', marginBottom: step.explanation ? 4 : 0, color: '#15803d' }}>
                   ✓ Answer: {step.answer || '—'}
                 </strong>
-                {step.explanation && <div dangerouslySetInnerHTML={{ __html: step.explanation }} />}
+                {step.explanation && <FormattedText value={step.explanation} />}
               </div>
             )}
           </div>
@@ -617,10 +618,9 @@ function Type2Card({ q, index, topics }: { q: any; index: number; topics: any[] 
             style={{ padding: '8px 16px', borderRadius: 9, border: '1px solid #d4dfeb', fontSize: 13, background: showFinal ? '#f0fdf4' : '#edf3fb', color: showFinal ? '#15803d' : '#244b77', cursor: 'pointer' }}>
             {showFinal ? '▲ Hide full explanation' : '▼ Show full explanation'}
           </button>
-          {showFinal && (
-            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, marginTop: 10, fontSize: 14, lineHeight: 1.7 }}
-              dangerouslySetInnerHTML={{ __html: q.finalAnswer || q.explanation || '' }} />
-          )}
+          {showFinal && <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, marginTop: 10, fontSize: 14, lineHeight: 1.7 }}>
+            <FormattedText value={q.finalAnswer || q.explanation || ''} />
+          </div>}
         </div>
       )}
     </article>

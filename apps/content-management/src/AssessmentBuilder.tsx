@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {API,platformApi} from './api';
 import {RichTextEditor} from './RichTextEditor';
+import {FormattedText} from './FormattedText';
 import './assessment-builder.css';
 
 const ALL_DIFF = ['easy','medium','hard','competency'] as const;
@@ -50,7 +51,7 @@ const mediaUrl=(item:any)=>String(item?.url||'').startsWith('http')?item.url:`${
 const mediaKey=(value:any)=>String(value||'').split(/[\\/]/).pop()?.toLowerCase().replace(/\.[^.]+$/,'')||'';
 const findReviewMedia=(ref:any,media:any[])=>{const key=mediaKey(typeof ref==='string'?ref:ref?.fileName||ref?.id||ref?.url);return media.find(item=>[item.id,item.fileName,item.originalName,item.title,item.url].some(value=>mediaKey(value)===key))};
 function ReviewMedia({refs=[],media=[]}:{refs?:any[];media?:any[]}){const assets=[...new Map((refs||[]).map(ref=>findReviewMedia(ref,media)).filter(Boolean).map((item:any)=>[item.id||item.fileName,item])).values()];return assets.length?<div className="form-review-media">{assets.map((item:any)=><figure key={item.id||item.fileName}><img src={mediaUrl(item)} alt={item.altText||item.title||item.fileName}/>{item.caption&&<figcaption>{item.caption}</figcaption>}</figure>)}</div>:null}
-function RichReviewHtml({html,media=[]}:{html:any;media?:any[]}){const source=String(html||'');if(!source)return null;const resolved=source.replace(/(<img\b[^>]*\bsrc=["'])([^"']+)(["'][^>]*>)/gi,(_all,start,src,end)=>{if(/^(?:https?:|data:|blob:)/i.test(src))return `${start}${src}${end}`;const item=findReviewMedia(src,media);return `${start}${item?mediaUrl(item):src}${end}`});return <div className="form-review-rich" dangerouslySetInnerHTML={{__html:resolved}}/>}
+function RichReviewHtml({html,media=[]}:{html:any;media?:any[]}){const source=String(html||'');if(!source)return null;const resolved=source.replace(/(<img\b[^>]*\bsrc=["'])([^"']+)(["'][^>]*>)/gi,(_all,start,src,end)=>{if(/^(?:https?:|data:|blob:)/i.test(src))return `${start}${src}${end}`;const item=findReviewMedia(src,media);return `${start}${item?mediaUrl(item):src}${end}`});return <FormattedText value={resolved} className="form-review-rich"/>}
 function FpType1({question,num,sectionMarks,reviewDetails=false,media=[]}:{question:any;num:number;sectionMarks:number;reviewDetails?:boolean;media?:any[]}){
   const isFill = question.format==='fill_blank'||question.format==='one_line'||(question.options||[]).length===0;
   return <div style={S.qCard}>

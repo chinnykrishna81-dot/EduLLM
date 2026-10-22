@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import './student-app.css';
 import { ChapterLearning } from './LearningExperience';
 import { shuffleForStudent } from './studentShuffle';
+import { FormattedText } from './FormattedText';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -314,7 +315,7 @@ function PracticeType1Student({ question }: { question: Question }) {
           <div className={`pv-feedback ${isOk ? 'correct' : 'wrong'}`}>
             <strong>{isOk ? '✓ Correct!' : '✕ Not quite'}</strong>
             {!isOk && <p>Correct answer: <strong>{question.correctAnswer}</strong></p>}
-            {question.explanation && <div dangerouslySetInnerHTML={{ __html: question.explanation }} />}
+            {question.explanation && <FormattedText value={question.explanation} />}
             <button className="pv-retry" onClick={retry}>↺ Try again</button>
           </div>
         )
@@ -354,7 +355,7 @@ function PracticeType2Student({ question }: { question: Question }) {
           {submitted && (
             <div className={`pv-step-fb ${isCorrect(step) ? 'correct' : 'wrong'}`}>
               {isCorrect(step) ? '✓ Correct' : `✕ Answer: ${step.answer}`}
-              {step.explanation && <p>{step.explanation}</p>}
+              {step.explanation && <FormattedText value={step.explanation} />}
             </div>
           )}
         </div>
@@ -379,7 +380,7 @@ function PracticeType2Student({ question }: { question: Question }) {
             {question.finalAnswer && (
               <div className="pv-t2-expl">
                 <b>Complete explanation</b>
-                <div dangerouslySetInnerHTML={{ __html: question.finalAnswer }} />
+                <FormattedText value={question.finalAnswer} />
               </div>
             )}
             <button className="pv-retry" onClick={retry}>↺ Try again</button>
