@@ -36,13 +36,19 @@ function markdownBlocks(value: string) {
 
 function sanitize(value: string) {
   const parsed = new DOMParser().parseFromString(value, 'text/html');
-  const allowed = new Set(['P','BR','B','STRONG','I','EM','U','UL','OL','LI','H2','H3','H4','H5','SUB','SUP','BLOCKQUOTE','HR','CODE','PRE','TABLE','THEAD','TBODY','TR','TH','TD','IMG','FIGURE','FIGCAPTION']);
+  const allowed = new Set(['P','BR','B','STRONG','I','EM','U','SPAN','FONT','UL','OL','LI','H2','H3','H4','H5','SUB','SUP','BLOCKQUOTE','HR','CODE','PRE','TABLE','THEAD','TBODY','TR','TH','TD','IMG','FIGURE','FIGCAPTION']);
+  const safeColor = (color: string) => /^(?:#[0-9a-f]{3,8}|(?:rgb|hsl)a?\([\d\s.,%+-]+\)|[a-z]{3,20})$/i.test(color.trim());
   parsed.body.querySelectorAll('*').forEach(node => {
     if (!allowed.has(node.tagName)) { node.replaceWith(...Array.from(node.childNodes)); return; }
     Array.from(node.attributes).forEach(attribute => {
       const safeImage = node.tagName === 'IMG' && attribute.name === 'src' && /^(?:https?:\/\/|\/api\/|data:image\/)/i.test(attribute.value);
       const safeAlt = node.tagName === 'IMG' && attribute.name === 'alt';
-      if (!safeImage && !safeAlt) node.removeAttribute(attribute.name);
+      const safeFontColor = node.tagName === 'FONT' && attribute.name === 'color' && safeColor(attribute.value);
+      const safeStyle = node.tagName === 'SPAN' && attribute.name === 'style'
+        ? attribute.value.split(';').map(rule => rule.split(':')).filter(([property, color]) => ['color','background-color'].includes(String(property).trim().toLowerCase()) && safeColor(String(color || ''))).map(([property, color]) => `${property.trim().toLowerCase()}:${color.trim()}`).join(';')
+        : '';
+      if (safeStyle) node.setAttribute('style', safeStyle);
+      else if (!safeImage && !safeAlt && !safeFontColor) node.removeAttribute(attribute.name);
     });
     if (node.tagName === 'IMG') { node.setAttribute('loading', 'lazy'); node.setAttribute('decoding', 'async'); }
   });
@@ -55,10 +61,16 @@ function markdownInHtml(value: string) {
   const nodes: Text[] = [];
   while (walker.nextNode()) nodes.push(walker.currentNode as Text);
   nodes.forEach(node => {
-    if (node.parentElement?.closest('code,pre') || !/(\*\*|__|`)/.test(node.data)) return;
+    if (node.parentElement?.closest('code,pre') || !/(\*\*|__|`|\r?\n)/.test(node.data)) return;
     const template = parsed.createElement('template');
-    template.innerHTML = inlineMarkdown(escapeHtml(node.data));
-    node.replaceWith(template.content);
+    const parent = node.parentElement;
+    if (parent?.tagName === 'P' && parent.childNodes.length === 1 && /\r?\n/.test(node.data)) {
+      template.innerHTML = markdownBlocks(escapeHtml(node.data));
+      parent.replaceWith(template.content);
+    } else {
+      template.innerHTML = inlineMarkdown(escapeHtml(node.data)).replace(/\r?\n/g, '<br>');
+      node.replaceWith(template.content);
+    }
   });
   return parsed.body.innerHTML;
 }
