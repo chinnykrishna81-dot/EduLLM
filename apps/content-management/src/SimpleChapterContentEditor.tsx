@@ -363,8 +363,13 @@ export function SimpleChapterContentEditor({
       if (existingIndex >= 0 && !window.confirm(`Replace the existing “${imported.title}” topic?`)) return;
       const next = existingIndex >= 0 ? topics.map((item, index) => index === existingIndex ? imported : item) : [...topics.filter((item) => !(item.title === "Topic 1" && !item.html && !item.subtopics.length)), imported];
       const index = next.findIndex((item) => item.id === imported.id);
+      await platformApi.updateChapter(chapter.id, {
+        title: chapter.title,
+        description: chapter.description,
+        content: buildContent(chapter, next),
+      });
       setTopics(next); setExpandedTopicIds((current) => new Set(current).add(imported.id)); setSelection({ topicIndex: index, subtopicIndex: 0 }); setTab("preview");
-      setMsg(`Imported ${imported.subtopics.length} subtopics${htmlFile ? " with the supplied HTML design" : " from JSON"}${uploaded.length ? ` and uploaded ${uploaded.length} image(s)` : ""}. Review, then select Save Draft.`);
+      setMsg(`Imported and saved “${imported.title}” as the next Concepts topic with ${imported.subtopics.length} subtopics${htmlFile ? " using the supplied HTML design" : " from JSON"}${uploaded.length ? ` and ${uploaded.length} uploaded image(s)` : ""}. It is now available in Preview as student.`);
     } catch (error: any) { setMsg(error?.message || "Import failed."); }
     finally {
       setBusy(false);
