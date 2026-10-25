@@ -47,7 +47,7 @@ function fullPatternHtml(pattern: any) {
   const walkthrough = method.complex_walkthrough || {};
   const walkthroughHtml = walkthrough.question ? `<h3>Detailed guided walkthrough</h3><div class="question">${esc(walkthrough.question)}</div>${(walkthrough.steps || []).map((step: any) => `<div class="calc-step"><strong>${esc(step.step)}. ${esc(step.title)}</strong><div class="math-line">${esc(step.calculation || step.explanation)}</div><p class="why">${esc(step.why || step.why_this_step)}</p></div>`).join("")}<div class="answer"><strong>Final answer:</strong> ${esc(walkthrough.final_answer)}</div>` : "";
   const examplesHtml = examples.map((example: any) => `<article class="example"><h3>Example ${esc(example.example_number)}: ${esc(example.possibility)}</h3><div class="question">${esc(example.question)}</div><p><strong>Why this pattern applies:</strong> ${esc(example.why_this_pattern_applies)}</p><p><strong>How to adapt:</strong> ${esc(example.how_to_adapt_the_template)}</p>${(example.step_by_step_solution || []).map((step: any) => `<div class="calc-step"><strong>Step ${esc(step.step)}</strong><div class="math-line">${esc(step.explanation)}</div><p class="why">${esc(step.why_this_step)}</p></div>`).join("")}<div class="answer"><strong>Final answer:</strong> ${esc(example.final_answer)}</div></article>`).join("");
-  const variationsHtml = (pattern.possible_variations || []).map((item: any) => `<div class="variation"><h3>${esc(item.variation)}</h3>${item.recognition_question ? `<p><strong>Recognition question:</strong> ${esc(item.recognition_question)}</p>` : ""}${item.how_to_recognise_and_solve ? `<p><strong>Recognise and solve:</strong> ${esc(item.how_to_recognise_and_solve)}</p>` : ""}${item.adaptation_tip ? `<p><strong>Adaptation tip:</strong> ${esc(item.adaptation_tip)}</p>` : ""}${item.template_adjustment ? `<p><strong>Template adjustment:</strong> ${esc(item.template_adjustment)}</p>` : ""}${item.check_before_answering ? `<p><strong>Check before answering:</strong> ${esc(item.check_before_answering)}</p>` : ""}</div>`).join("");
+  const variationsHtml = (pattern.possible_variations || []).map((item: any) => `<div class="variation"><h3>${esc(item.variation)}</h3><p><strong>Recognise and solve:</strong> ${esc(item.how_to_recognise_and_solve)}</p><p><strong>Template adjustment:</strong> ${esc(item.template_adjustment || item.adaptation_tip)}</p></div>`).join("");
   const mistakesHtml = (pattern.common_mistakes_and_how_to_avoid || []).map((item: any) => `<div class="mistake"><strong>Common mistake:</strong> ${esc(item.mistake)}<p><strong>How to avoid:</strong> ${esc(item.how_to_avoid)}</p><p><strong>Correct habit:</strong> ${esc(item.correct_habit)}</p></div>`).join("");
   const practice = pattern.try_yourself_extended || pattern.try_yourself || {};
   return `<article class="pattern-page edullm-competency-pattern" id="${esc(pattern.pattern_id)}"><header class="hero"><div class="eyebrow">EDULLM · CLASS ${esc(pattern.class_level)} ${esc(pattern.subject)} · ${esc(pattern.chapter)}</div><div class="pattern-code">Pattern ${esc(pattern.pattern_id)}</div><h1>${esc(pattern.pattern_title)}</h1><p class="subtitle">${esc(pattern.competency)}</p></header><section class="panel sky"><h2>1. What is this pattern?</h2><p>${esc(recognition.plain_language_explanation)}</p><h3>Recognise this pattern when</h3>${list(recognition.recognition_clues)}${rows ? `<div class="table-scroll"><table><thead><tr><th>Question clue</th><th>What to recognise</th><th>What to do</th></tr></thead><tbody>${rows}</tbody></table></div>` : ""}<div class="tip"><strong>Decision rule:</strong> ${esc(recognition.quick_decision_rule)}</div>${diagram}</section><section class="panel mint"><h2>2. How to use this solving template</h2><p>${esc(method.goal)}</p><div class="math-line"><strong>${esc(method.essential_formula || pattern.formula).replaceAll("**", "")}</strong></div>${steps}${walkthroughHtml}</section><section class="panel lavender"><h2>3. Three worked examples — different possibilities</h2>${examplesHtml}</section><section class="panel sky"><h2>4. Possible variations and how to adapt</h2>${variationsHtml}</section><section class="panel mint"><h2>5. Key points to remember</h2>${list(pattern.key_points_to_remember)}</section><section class="panel peach"><h2>6. Common mistakes and how to avoid them</h2>${mistakesHtml}</section><section class="panel gold"><h2>7. Try yourself</h2><div class="question">${esc(practice.question)}</div>${list(practice.student_instructions)}${practice.reflection ? `<p>${esc(practice.reflection)}</p>` : ""}<details><summary>Show answer and explanation</summary><p>${esc(pattern.try_yourself?.answer_with_reason || practice.answer)}</p></details></section><footer>Reference topic: ${esc(pattern.end_reference_topic || pattern.primary_topic)}</footer></article>`;
@@ -562,7 +562,7 @@ export function SimpleChapterContentEditor({
                     className={tab === "edit" ? "active" : ""}
                     onClick={() => setTab("edit")}
                   >
-                    Edit
+                    Edit Rich Text
                   </button>
                   <button
                     className={tab === "preview" ? "active" : ""}
@@ -574,11 +574,14 @@ export function SimpleChapterContentEditor({
               </div>
 
               {tab === "edit" ? (
-                <RichEditor
-                  key={node.id}
-                  initialValue={node.html}
-                  onChange={updateHtml}
-                />
+                <>
+                  <p className="sce-rich-edit-help">Edit or paste formatted content for this {selection.subtopicIndex === undefined ? "topic" : "subtopic"}. Use Save Draft after manual corrections.</p>
+                  <RichEditor
+                    key={node.id}
+                    initialValue={node.html}
+                    onChange={updateHtml}
+                  />
+                </>
               ) : (
                 <div
                   className="sce-preview"
