@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { platformApi, type LibraryChapter } from "./api";
 import { browserId } from "./browserId";
 import "./simple-chapter-editor.css";
+import "../../competency-patterns.css";
 
 interface Subtopic {
   id: string;
@@ -22,6 +23,22 @@ interface Selection {
 }
 
 const uid = (prefix = "topic") => `${prefix}-${browserId()}`;
+
+const escapeHtml = (value: unknown) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+
+function fallbackPatternHtml(pattern: any) {
+  const list = (items: unknown[] = []) => `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+  const recognition = pattern.what_is_this_pattern || {}, method = pattern.how_to_use_this_template || {};
+  const examples = pattern.three_worked_examples || [], variations = pattern.possible_variations || [];
+  const mistakes = pattern.common_mistakes_and_how_to_avoid || [], practice = pattern.try_yourself_extended || pattern.try_yourself || {};
+  return `<article class="pattern-page edullm-competency-pattern" id="${escapeHtml(pattern.pattern_id)}"><header class="hero"><div class="eyebrow">EDULLM · CLASS ${escapeHtml(pattern.class_level)} ${escapeHtml(pattern.subject)} · ${escapeHtml(pattern.chapter)}</div><div class="pattern-code">Pattern ${escapeHtml(pattern.pattern_id)}</div><h1>${escapeHtml(pattern.pattern_title)}</h1><p class="subtitle">${escapeHtml(pattern.competency)}</p></header><section class="panel sky"><h2>1. What is this pattern?</h2><p>${escapeHtml(recognition.plain_language_explanation)}</p><h3>Recognise this pattern when</h3>${list(recognition.recognition_clues)}<div class="tip"><strong>Decision rule:</strong> ${escapeHtml(recognition.quick_decision_rule)}</div></section><section class="panel mint"><h2>2. How to use this solving template</h2><p>${escapeHtml(method.goal)}</p><div class="math-line"><strong>${escapeHtml(method.essential_formula || pattern.formula).replaceAll("**", "")}</strong></div>${(method.fully_explained_steps || method.step_by_step_method || []).map((step: any) => `<div class="step"><div class="step-title"><span class="step-num">${escapeHtml(step.step)}</span><strong>${escapeHtml(step.action || step.instruction)}</strong></div>${step.calculation_or_example ? `<div class="math-line">${escapeHtml(step.calculation_or_example)}</div>` : ""}${step.conceptual_reason ? `<p class="why">${escapeHtml(step.conceptual_reason)}</p>` : ""}</div>`).join("")}</section><section class="panel lavender"><h2>3. Three worked examples — different possibilities</h2>${examples.map((example: any) => `<article class="example"><h3>Example ${escapeHtml(example.example_number)}: ${escapeHtml(example.possibility)}</h3><div class="question">${escapeHtml(example.question)}</div>${(example.step_by_step_solution || []).map((step: any) => `<div class="calc-step"><strong>Step ${escapeHtml(step.step)}</strong><div class="math-line">${escapeHtml(step.explanation)}</div></div>`).join("")}<div class="answer"><strong>Final answer:</strong> ${escapeHtml(example.final_answer)}</div></article>`).join("")}</section><section class="panel sky"><h2>4. Possible variations and how to adapt</h2>${variations.map((item: any) => `<div class="variation"><h3>${escapeHtml(item.variation)}</h3><p><strong>Recognise and solve:</strong> ${escapeHtml(item.how_to_recognise_and_solve)}</p></div>`).join("")}</section><section class="panel mint"><h2>5. Key points to remember</h2>${list(pattern.key_points_to_remember)}</section><section class="panel peach"><h2>6. Common mistakes and how to avoid them</h2>${mistakes.map((item: any) => `<div class="mistake"><strong>Common mistake:</strong> ${escapeHtml(item.mistake)}<p><strong>How to avoid:</strong> ${escapeHtml(item.how_to_avoid)}</p><p><strong>Correct habit:</strong> ${escapeHtml(item.correct_habit)}</p></div>`).join("")}</section><section class="panel gold"><h2>7. Try yourself</h2><div class="question">${escapeHtml(practice.question)}</div>${list(practice.student_instructions)}<details><summary>Show answer and explanation</summary><p>${escapeHtml(practice.answer_with_reason || practice.answer)}</p></details></section><footer>Reference topic: ${escapeHtml(pattern.end_reference_topic || pattern.primary_topic)}</footer></article>`;
+}
+
+function patternArticles(html: string) {
+  if (!html.trim()) return new Map<string, string>();
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return new Map(Array.from(doc.querySelectorAll<HTMLElement>("article.pattern-page[id]")).map((article) => { article.classList.add("edullm-competency-pattern"); return [article.id, article.outerHTML]; }));
+}
 
 function initTopics(chapter: LibraryChapter): Topic[] {
   const raw: any[] = chapter.content?.topics ?? [];
@@ -224,6 +241,7 @@ export function SimpleChapterContentEditor({
   const [tab, setTab] = useState<"edit" | "preview">("preview");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const importInput = useRef<HTMLInputElement>(null);
 
   const topic = topics[selection.topicIndex] ?? topics[0],
     node =
@@ -318,6 +336,36 @@ export function SimpleChapterContentEditor({
     if (!window.confirm(`Delete "${topics[i].title}"?`)) return;
     setTopics((p) => p.filter((_, idx) => idx !== i));
     setSelection({ topicIndex: Math.max(0, i - 1) });
+  };
+
+  const importCompetencyPatterns = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setBusy(true); setMsg("");
+    try {
+      const selected = Array.from(files);
+      const jsonFile = selected.find((file) => file.name.toLowerCase().endsWith(".json"));
+      if (!jsonFile) throw new Error("Select the competency-pattern JSON file.");
+      const htmlFile = selected.find((file) => file.name.toLowerCase().endsWith(".html"));
+      const imageFiles = selected.filter((file) => file.type.startsWith("image/") || /\.(png|jpe?g|webp|svg|gif|avif|bmp)$/i.test(file.name));
+      const data = JSON.parse(await jsonFile.text());
+      if (!data?.topic?.topic_id || !Array.isArray(data.patterns) || !data.patterns.length) throw new Error("This is not a supported EduLLM topic/subtopic competency JSON file.");
+      const uploaded: any[] = imageFiles.length ? await platformApi.uploadChapterMedia(chapter.id, imageFiles) : [];
+      const imageUrls = new Map(uploaded.map((item: any) => [String(item.fileName).toLowerCase(), item.url]));
+      const articles = patternArticles(htmlFile ? await htmlFile.text() : "");
+      const imported: Topic = { id: String(data.topic.topic_id), title: String(data.topic.topic_name || "Competency Patterns"), html: "", source: { syllabusCode: String(data.topic.topic_id), competencyPattern: true }, subtopics: data.patterns.map((pattern: any) => {
+        let html = articles.get(String(pattern.pattern_id)) || fallbackPatternHtml(pattern);
+        const uploadedUrl = imageUrls.get(String(pattern.diagram?.file_name || "").toLowerCase());
+        if (uploadedUrl) { const parsed = new DOMParser().parseFromString(html, "text/html"); const image = parsed.querySelector("article.pattern-page img"); if (image) image.setAttribute("src", uploadedUrl); html = parsed.querySelector("article.pattern-page")?.outerHTML || html; }
+        return { id: String(pattern.subtopic_id || pattern.pattern_id), title: String(pattern.subtopic_name || pattern.pattern_title), html, source: { syllabusCode: pattern.pattern_id, competencyPattern: true } };
+      }) };
+      const existingIndex = topics.findIndex((item) => item.id === imported.id);
+      if (existingIndex >= 0 && !window.confirm(`Replace the existing “${imported.title}” topic?`)) return;
+      const next = existingIndex >= 0 ? topics.map((item, index) => index === existingIndex ? imported : item) : [...topics.filter((item) => !(item.title === "Topic 1" && !item.html && !item.subtopics.length)), imported];
+      const index = next.findIndex((item) => item.id === imported.id);
+      setTopics(next); setExpandedTopicIds((current) => new Set(current).add(imported.id)); setSelection({ topicIndex: index, subtopicIndex: 0 }); setTab("preview");
+      setMsg(`Imported ${imported.subtopics.length} subtopics${htmlFile ? " with the supplied HTML design" : " from JSON"}${uploaded.length ? ` and uploaded ${uploaded.length} image(s)` : ""}. Review, then select Save Draft.`);
+    } catch (error: any) { setMsg(error?.message || "Import failed."); }
+    finally { setBusy(false); if (importInput.current) importInput.current.value = ""; }
   };
 
   return (
@@ -446,6 +494,9 @@ export function SimpleChapterContentEditor({
           <button className="sce-add-topic" onClick={addTopic}>
             + Add Topic
           </button>
+          <input ref={importInput} type="file" accept=".json,.html,image/*,.svg" multiple hidden onChange={(event) => importCompetencyPatterns(event.target.files)} />
+          <button className="sce-import-patterns" disabled={busy} onClick={() => importInput.current?.click()}>Import JSON + Images</button>
+          <p className="sce-import-help">Select the EduLLM JSON; optionally select its HTML and referenced images together.</p>
         </aside>
 
         <main className="sce-main">
