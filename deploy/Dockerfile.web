@@ -10,6 +10,7 @@ RUN npm ci
 
 COPY apps/content-management apps/content-management
 COPY apps/unified-learning apps/unified-learning
+COPY apps/competency-patterns.css apps/competency-patterns.css
 COPY packages/content-schema packages/content-schema
 RUN npm run build -w @edullm/content-schema && \
     VITE_API_ORIGIN='' VITE_BASE_PATH='/admin/' npm run build -w @edullm/content-management && \
