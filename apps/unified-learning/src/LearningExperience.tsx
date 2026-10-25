@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useRef,useState,type DragEvent} from 'react';
 import {chapterLearningPages} from '@edullm/content-schema';
 import './learning-experience.css';
+import '../../competency-patterns.css';
 import './navigation-cleanup.css';
 import {shuffleForStudent} from './studentShuffle';
 import {CycleTestExperience} from './CycleTestExperience';
@@ -175,6 +176,7 @@ export function ChapterLearning({subject,chapter,back,externalPractice,previewMo
 
 function TreeNavigation({groups,pages,progress,cykStatus,cur,navigate,activeRef}:{groups:any[];pages:any[];progress:Progress;cykStatus:Record<string,CykState>;cur:number;navigate:(idx:number)=>void;activeRef:React.MutableRefObject<HTMLElement|null>}){
   const curPage=pages[cur];
+  const [expanded,setExpanded]=useState<Set<string>>(()=>new Set(curPage?.topicId?[curPage.topicId]:[]));
   return <div className="tree-navigation">{groups.map(group=>{
     const firstIdx=pages.findIndex((p:any)=>p.id===group.pages[0].id);
     const isTopicActive=curPage?.topicId===group.id;
@@ -183,8 +185,8 @@ function TreeNavigation({groups,pages,progress,cykStatus,cur,navigate,activeRef}
     const complete=topicComplete(group,progress);
     const state=complete?(progress.mastery[group.id]||'blue'):done||group.pages.some((p:any)=>progress.opened.includes(p.id))?'active':'empty';
     const subtopics=group.subtopics.filter((s:any)=>!s.introduction);
-    return <details open={isTopicActive||complete} key={group.id}>
-      <summary className={`tree-summary mastery-${state}${isTopicActive?' topic-active':''}`} onClick={()=>navigate(firstIdx)}>
+    return <details open={isTopicActive||complete||expanded.has(group.id)} key={group.id}>
+      <summary className={`tree-summary mastery-${state}${isTopicActive?' topic-active':''}`} onClick={(event)=>{event.preventDefault();if(subtopics.length)setExpanded(current=>{const next=new Set(current);if(next.has(group.id))next.delete(group.id);else next.add(group.id);return next});else navigate(firstIdx)}}>
         <StatusBox state={state} percent={pct}/>
         <span ref={isTopicActive&&!subtopics.length?(node=>{activeRef.current=node;}):undefined}>{group.title}</span>
         <strong>⌄</strong>
