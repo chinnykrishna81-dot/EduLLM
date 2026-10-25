@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { platformApi, type LibraryChapter } from "./api";
 import { browserId } from "./browserId";
+import { importEducationalContent, renderEducationalSubtopic } from "@edullm/content-schema";
 import "./simple-chapter-editor.css";
 import "../../competency-patterns.css";
 
@@ -368,15 +369,18 @@ export function SimpleChapterContentEditor({
       if (!jsonFile) throw new Error("Select the competency-pattern JSON file.");
       const htmlFile = contentImportFiles.find((file) => file.name.toLowerCase().endsWith(".html"));
       const data = JSON.parse(await jsonFile.text());
-      if (!data?.topic?.topic_id || !Array.isArray(data.patterns) || !data.patterns.length) throw new Error("This is not a supported EduLLM topic/subtopic competency JSON file.");
+      const canonical = importEducationalContent(data);
+      if (!canonical.topics[0]?.subtopics.length) throw new Error("The JSON does not contain any importable SUBTOPIC_CONTENT blocks or subtopics.");
       const uploaded: any[] = imageImportFiles.length ? await platformApi.uploadChapterMedia(chapter.id, imageImportFiles) : [];
       const imageUrls = new Map(uploaded.map((item: any) => [mediaFileName(item.fileName), item.url]));
       const articles = patternArticles(htmlFile ? await htmlFile.text() : "");
-      const imported: Topic = { id: String(data.topic.topic_id), title: String(data.topic.topic_name || "Competency Patterns"), html: "", source: { syllabusCode: String(data.topic.topic_id), competencyPattern: true }, subtopics: data.patterns.map((pattern: any) => {
-        let html = articles.get(String(pattern.pattern_id)) || fullPatternHtml(pattern) || fallbackPatternHtml(pattern);
-        const uploadedUrl = imageUrls.get(mediaFileName(pattern.diagram?.file_name));
-        if (uploadedUrl) { const parsed = new DOMParser().parseFromString(html, "text/html"); const image = parsed.querySelector("article.pattern-page img"); if (image) image.setAttribute("src", uploadedUrl); html = parsed.querySelector("article.pattern-page")?.outerHTML || html; }
-        return { id: String(pattern.subtopic_id || pattern.pattern_id), title: String(pattern.subtopic_name || pattern.pattern_title), html, source: { syllabusCode: pattern.pattern_id, competencyPattern: true } };
+      const canonicalTopic = canonical.topics[0];
+      const imported: Topic = { id: canonicalTopic.id, title: canonicalTopic.title, html: "", source: { syllabusCode: canonicalTopic.id, educationalImport: true }, subtopics: canonicalTopic.subtopics.map((subtopic) => {
+        const uploadedUrl = imageUrls.get(mediaFileName(subtopic.content.diagram?.file_name));
+        const html = renderEducationalSubtopic(subtopic, uploadedUrl);
+        const suppliedHtml=articles.get(subtopic.id);
+        if(suppliedHtml){const text=(value:string)=>new DOMParser().parseFromString(value,"text/html").body.textContent?.replace(/\s+/g," ").trim();if(text(suppliedHtml)!==text(html))canonical.issues.push({severity:"warning",topicId:canonicalTopic.id,subtopicId:subtopic.id,path:"printableHtml",message:"Supplied printable HTML differs from canonical JSON output; JSON was retained as the source of truth."});}
+        return { id: subtopic.id, title: subtopic.title, html, source: { syllabusCode: subtopic.id, educationalImport: true, sourceContent: subtopic.content } };
       }) };
       const existingIndex = topics.findIndex((item) => item.id === imported.id);
       if (existingIndex >= 0 && !window.confirm(`Replace the existing “${imported.title}” topic?`)) return;
@@ -388,7 +392,8 @@ export function SimpleChapterContentEditor({
         content: buildContent(chapter, next),
       });
       setTopics(next); setExpandedTopicIds((current) => new Set(current).add(imported.id)); setSelection({ topicIndex: index, subtopicIndex: 0 }); setTab("preview");
-      setMsg(`Imported and saved “${imported.title}” as the next Concepts topic with ${imported.subtopics.length} subtopics${htmlFile ? " using the supplied HTML design" : " from JSON"}${uploaded.length ? ` and ${uploaded.length} uploaded image(s)` : ""}. It is now available in Preview as student.`);
+      const warningText=canonical.issues.length?` Validation: ${canonical.issues.map(issue=>`${issue.subtopicId} ${issue.path}: ${issue.message}`).join(" | ")}`:"";
+      setMsg(`Imported and saved “${imported.title}” as the next Concepts topic with ${imported.subtopics.length} subtopics${htmlFile ? " using the supplied HTML design" : " from canonical JSON"}${uploaded.length ? ` and ${uploaded.length} uploaded image(s)` : ""}. It is now available in Preview as student.${warningText}`);
     } catch (error: any) { setMsg(error?.message || "Import failed."); }
     finally {
       setBusy(false);

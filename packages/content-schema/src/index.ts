@@ -1,4 +1,5 @@
 import { z } from 'zod';
+export * from './educationalContent';
 
 const text = z.string().default('');
 const id = z.string().min(1);
