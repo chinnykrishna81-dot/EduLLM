@@ -241,7 +241,10 @@ export function SimpleChapterContentEditor({
   const [tab, setTab] = useState<"edit" | "preview">("preview");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
-  const importInput = useRef<HTMLInputElement>(null);
+  const contentImportInput = useRef<HTMLInputElement>(null);
+  const imageImportInput = useRef<HTMLInputElement>(null);
+  const [contentImportFiles, setContentImportFiles] = useState<File[]>([]);
+  const [imageImportFiles, setImageImportFiles] = useState<File[]>([]);
 
   const topic = topics[selection.topicIndex] ?? topics[0],
     node =
@@ -338,18 +341,16 @@ export function SimpleChapterContentEditor({
     setSelection({ topicIndex: Math.max(0, i - 1) });
   };
 
-  const importCompetencyPatterns = async (files: FileList | null) => {
-    if (!files?.length) return;
+  const importCompetencyPatterns = async () => {
+    if (!contentImportFiles.length) { setMsg("Select the competency-pattern JSON file first."); return; }
     setBusy(true); setMsg("");
     try {
-      const selected = Array.from(files);
-      const jsonFile = selected.find((file) => file.name.toLowerCase().endsWith(".json"));
+      const jsonFile = contentImportFiles.find((file) => file.name.toLowerCase().endsWith(".json"));
       if (!jsonFile) throw new Error("Select the competency-pattern JSON file.");
-      const htmlFile = selected.find((file) => file.name.toLowerCase().endsWith(".html"));
-      const imageFiles = selected.filter((file) => file.type.startsWith("image/") || /\.(png|jpe?g|webp|svg|gif|avif|bmp)$/i.test(file.name));
+      const htmlFile = contentImportFiles.find((file) => file.name.toLowerCase().endsWith(".html"));
       const data = JSON.parse(await jsonFile.text());
       if (!data?.topic?.topic_id || !Array.isArray(data.patterns) || !data.patterns.length) throw new Error("This is not a supported EduLLM topic/subtopic competency JSON file.");
-      const uploaded: any[] = imageFiles.length ? await platformApi.uploadChapterMedia(chapter.id, imageFiles) : [];
+      const uploaded: any[] = imageImportFiles.length ? await platformApi.uploadChapterMedia(chapter.id, imageImportFiles) : [];
       const imageUrls = new Map(uploaded.map((item: any) => [String(item.fileName).toLowerCase(), item.url]));
       const articles = patternArticles(htmlFile ? await htmlFile.text() : "");
       const imported: Topic = { id: String(data.topic.topic_id), title: String(data.topic.topic_name || "Competency Patterns"), html: "", source: { syllabusCode: String(data.topic.topic_id), competencyPattern: true }, subtopics: data.patterns.map((pattern: any) => {
@@ -365,7 +366,12 @@ export function SimpleChapterContentEditor({
       setTopics(next); setExpandedTopicIds((current) => new Set(current).add(imported.id)); setSelection({ topicIndex: index, subtopicIndex: 0 }); setTab("preview");
       setMsg(`Imported ${imported.subtopics.length} subtopics${htmlFile ? " with the supplied HTML design" : " from JSON"}${uploaded.length ? ` and uploaded ${uploaded.length} image(s)` : ""}. Review, then select Save Draft.`);
     } catch (error: any) { setMsg(error?.message || "Import failed."); }
-    finally { setBusy(false); if (importInput.current) importInput.current.value = ""; }
+    finally {
+      setBusy(false);
+      setContentImportFiles([]); setImageImportFiles([]);
+      if (contentImportInput.current) contentImportInput.current.value = "";
+      if (imageImportInput.current) imageImportInput.current.value = "";
+    }
   };
 
   return (
@@ -494,9 +500,23 @@ export function SimpleChapterContentEditor({
           <button className="sce-add-topic" onClick={addTopic}>
             + Add Topic
           </button>
-          <input ref={importInput} type="file" accept=".json,.html,image/*,.svg" multiple hidden onChange={(event) => importCompetencyPatterns(event.target.files)} />
-          <button className="sce-import-patterns" disabled={busy} onClick={() => importInput.current?.click()}>Import JSON + Images</button>
-          <p className="sce-import-help">Select the EduLLM JSON; optionally select its HTML and referenced images together.</p>
+          <section className="sce-import-box">
+            <strong>Import competency content</strong>
+            <label>
+              <span>1. JSON and HTML</span>
+              <input ref={contentImportInput} type="file" accept=".json,.html" multiple onChange={(event) => setContentImportFiles(Array.from(event.target.files || []))} />
+              <small>{contentImportFiles.length ? contentImportFiles.map((file) => file.name).join(", ") : "JSON required; companion HTML optional"}</small>
+            </label>
+            <label>
+              <span>2. Referenced images (optional)</span>
+              <input ref={imageImportInput} type="file" accept="image/*,.svg" multiple onChange={(event) => setImageImportFiles(Array.from(event.target.files || []))} />
+              <small>{imageImportFiles.length ? `${imageImportFiles.length} image(s) selected` : "Select all referenced image files"}</small>
+            </label>
+            <button className="sce-import-patterns" disabled={busy || !contentImportFiles.some((file) => file.name.toLowerCase().endsWith(".json"))} onClick={importCompetencyPatterns}>
+              {busy ? "Processing…" : "Process JSON + Images"}
+            </button>
+            <p className="sce-import-help">Both selections are processed together. Images are uploaded and matched by filename before the topic and subtopics are created.</p>
+          </section>
         </aside>
 
         <main className="sce-main">
