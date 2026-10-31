@@ -10,8 +10,11 @@ describe('secureCompetencyHtml',()=>{
     const result=secureCompetencyHtml('<style>@import url("https://fonts.example/font.css");h1{color:blue}</style><article class="pattern-page" id="RN-01"><h1>Pattern</h1></article>');
     expect(result.html).not.toContain('fonts.example');expect(result.html).toContain('h1{color:blue}');expect(result.warnings).toHaveLength(1);
   });
+  it('removes scripts while retaining safe presentation controls',()=>{
+    const result=secureCompetencyHtml('<article class="pattern-page" id="RN-01"><button type="button">Next</button><script>window.parent.postMessage("token", "*")</script></article>');
+    expect(result.html).toContain('<button type="button">Next</button>');expect(result.html).not.toContain('<script');expect(result.warnings).toContain('Scripted behaviour was removed; safe native HTML interactions remain available.');
+  });
   it.each([
-    '<script>alert(1)</script>',
     '<article class="pattern-page" id="P"><img src="https://bad.example/x.png"></article>',
     '<article class="pattern-page" id="P"><p onclick="x()">x</p></article>'
   ])('rejects unsafe HTML: %s',html=>expect(()=>secureCompetencyHtml(html)).toThrow());

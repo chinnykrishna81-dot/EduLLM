@@ -371,7 +371,7 @@ export function SimpleChapterContentEditor({
     setBusy(true); setMsg("");
     try {
       const jsonFile = contentImportFiles.find((file) => file.name.toLowerCase().endsWith(".json"));
-      const htmlFile = contentImportFiles.find((file) => file.name.toLowerCase().endsWith(".html"));
+      const htmlFile = contentImportFiles.find((file) => /\.html?$/i.test(file.name));
       if(!jsonFile&&htmlFile){const result=await platformApi.uploadCompetencyHtml(chapter.id,topic.id,htmlFile);const importedTopics=initTopics(result.chapter),index=Math.max(0,importedTopics.findIndex(item=>item.id===topic.id));setTopics(importedTopics);setHtmlAssets(result.chapter.content?.competencyHtmlPresentations||[]);setExpandedTopicIds(current=>new Set(current).add(topic.id));setSelection({topicIndex:index,subtopicIndex:0});setTab("preview");setMsg(`Secure HTML presentation uploaded with ${result.presentation.patternIds?.length||result.createdSubtopics.length} pattern section(s).`);return}
       if(!jsonFile)throw new Error("Select a JSON or HTML competency file.");
       const data = JSON.parse(await jsonFile.text());
@@ -543,7 +543,7 @@ export function SimpleChapterContentEditor({
             <strong>Import competency content</strong>
             <label>
               <span>1. JSON and HTML</span>
-              <input ref={contentImportInput} type="file" accept=".json,.html" multiple onChange={(event) => setContentImportFiles(Array.from(event.target.files || []))} />
+              <input ref={contentImportInput} type="file" accept=".json,.html,.htm,text/html" multiple onChange={(event) => setContentImportFiles(Array.from(event.target.files || []))} />
               <small>{contentImportFiles.length ? contentImportFiles.map((file) => file.name).join(", ") : "JSON, HTML, or both together"}</small>
             </label>
             <label>
@@ -551,7 +551,7 @@ export function SimpleChapterContentEditor({
               <input ref={imageImportInput} type="file" accept="image/*,.svg" multiple onChange={(event) => setImageImportFiles(Array.from(event.target.files || []))} />
               <small>{imageImportFiles.length ? `${imageImportFiles.length} image(s) selected` : "Select all referenced image files"}</small>
             </label>
-            <button className="sce-import-patterns" disabled={busy || !contentImportFiles.some((file) => /\.(json|html)$/i.test(file.name))} onClick={importCompetencyPatterns}>
+            <button className="sce-import-patterns" disabled={busy || !contentImportFiles.some((file) => /\.(json|html?)$/i.test(file.name))} onClick={importCompetencyPatterns}>
               {busy ? "Processing…" : "Process competency files"}
             </button>
             <p className="sce-import-help">JSON remains the structured source for metadata and analytics. HTML becomes the isolated visual presentation. HTML-only uploads attach to the selected Topic.</p>
