@@ -31,7 +31,25 @@ export default function PlatformApp({user,logout}:{user:CmsUser;logout:()=>void}
   const [chapters,setChapters]=useState<LibraryChapter[]>([]),[subjects,setSubjects]=useState<SubjectDefinition[]>([]),[courses,setCourses]=useState<CourseOffering[]>([]);
   const [dashboard,setDashboard]=useState<any>(null);
   const [selectedSubject,setSelectedSubject]=useState<string>(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
-  const load=async(target:View=view)=>{if(target==='dashboard'){if(user.role==='admin')setDashboard(await platformApi.adminDashboard());else if(user.role==='reviewer')setChapters(await platformApi.chapters());else{const [c,s]=await Promise.all([platformApi.chapters(),platformApi.subjects()]);setChapters(c);setSubjects(s)}return}if(target==='chapters'){setChapters(await platformApi.chapters());return}if(target==='subjects'){const [c,s]=await Promise.all([platformApi.chapters(),platformApi.subjects()]);setChapters(c);setSubjects(s);return}if(target==='courses'){const [s,o]=await Promise.all([platformApi.subjects(),platformApi.offerings()]);setSubjects(s);setCourses(o)}};
+  const loadChapterIndex=async()=>{
+    const index=await platformApi.chapters();
+    setChapters(index);
+    // Cards render from the small index immediately. Hydrate full chapter data
+    // in the background so existing editor/review actions remain unchanged.
+    void Promise.all(index.map(item=>platformApi.chapter(item.id))).then(setChapters).catch(()=>undefined);
+    return index;
+  };
+  const load=async(target:View=view)=>{
+    if(target==='dashboard'){
+      if(user.role==='admin')setDashboard(await platformApi.adminDashboard());
+      else if(user.role==='reviewer')await loadChapterIndex();
+      else{const [c,s]=await Promise.all([platformApi.chapters(),platformApi.subjects()]);setChapters(c);setSubjects(s);void Promise.all(c.map(item=>platformApi.chapter(item.id))).then(setChapters).catch(()=>undefined)}
+      return;
+    }
+    if(target==='chapters'){await loadChapterIndex();return}
+    if(target==='subjects'){const [c,s]=await Promise.all([platformApi.chapters(),platformApi.subjects()]);setChapters(c);setSubjects(s);return}
+    if(target==='courses'){const [s,o]=await Promise.all([platformApi.subjects(),platformApi.offerings()]);setSubjects(s);setCourses(o)}
+  };
   useEffect(()=>{load(view).catch(e=>setNotice(e.message))},[view]);
   const act=async(fn:()=>Promise<unknown>,message:string)=>{setBusy(true);setNotice('');try{await fn();await load(view);setNotice(message);return true}catch(e:any){setNotice(e.message);return false}finally{setBusy(false)}};
   const subject=subjects.find(x=>x.id===selectedSubject)||subjects[0];
@@ -175,7 +193,7 @@ function ChapterLibrary({chapters,busy,act,canApprove,role,onQBank}:{chapters:Li
     {configuring&&<AssessmentBuilder kind="Cycle Test" value={configuring.cycleTest||configuring.package?.cycleTest} sourceBank={bankQuestions} topics={configuring.content?.topics||[]} chapterId={configuring.id} questionCount={bankQuestions.length} busy={busy} close={()=>setConfiguring(undefined)} save={async value=>{await act(()=>platformApi.updateCycleTest(configuring.id,value),'Cycle Test configuration saved; chapter returned to Draft')}}/>}
     <div className="cards">{chapters.map(c=>{const test=c.cycleTest||c.package?.cycleTest;return <article key={c.id}>
       <div><span className={`p-status ${c.status}`}>{statusLabel(c.status)}</span><small>Version {c.version}</small></div><h3>{c.title}</h3><p>{c.description}</p>
-      <ul><li>{c.content.topics.length} topic(s)</li><li>{c.subjectTags.join(', ')||'Unclassified'}</li>{test?<li>Cycle Test: {test.totalMarks} marks / {test.durationMinutes} min / {test.formCycleCount||5} forms</li>:<li>Cycle Test not configured</li>}<li>Reviewer: {c.reviewer?.displayName||'Not assigned'}</li></ul>
+      <ul><li>{c.topicCount??c.content.topics.length} topic(s)</li><li>{c.subjectTags.join(', ')||'Unclassified'}</li>{test?<li>Cycle Test: {test.totalMarks} marks / {test.durationMinutes} min / {test.formCycleCount||5} forms</li>:<li>Cycle Test not configured</li>}<li>Reviewer: {c.reviewer?.displayName||'Not assigned'}</li></ul>
       {role!=='reviewer'&&<label className="reviewer-select">Assigned reviewer<select value={c.reviewer?.id||''} onChange={e=>e.target.value&&act(()=>platformApi.assignReviewer(c.id,e.target.value),'Reviewer assigned')}><option value="">Select reviewer</option>{reviewers.map(r=><option key={r.id} value={r.id}>{r.displayName} · {r.email}</option>)}</select></label>}
       <footer>{role!=='reviewer'&&!['in_review','reviewed'].includes(c.status)&&<><button onClick={()=>setBuilding(c)}>Build content</button><button onClick={()=>setWordUploadChapter(c)}>↑ Upload Topics</button><button onClick={()=>onQBank(c)}>Question Bank</button><label className="file-button">Upload images<input type="file" multiple accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={e=>{if(e.target.files?.length)act(()=>platformApi.uploadChapterMedia(c.id,e.target.files!),"Chapter images uploaded")}}/></label><button className="danger" onClick={()=>{if(window.confirm("Delete this chapter permanently? It will be removed from all Subject Units, and its version history and uploaded media will also be deleted."))act(()=>platformApi.deleteChapter(c.id),"Chapter deleted; affected Subjects returned to Draft")}}>Delete chapter</button></>}<button onClick={()=>setReviewing(c)}>{role==='reviewer'?'Open review':'Preview / review'}</button>{role!=='reviewer'&&!['in_review','reviewed'].includes(c.status)&&<button onClick={async()=>{try{const bank=await platformApi.chapterQuestions(c.id);setBankQuestions(bank);setConfiguring(c)}catch(error:any){window.alert(error.message)}}}>⚙ {test?'Review / edit':'Add'} Cycle Test</button>}{role!=='reviewer'&&c.status==='draft'&&<button disabled={!c.reviewer} onClick={()=>act(()=>platformApi.submitForReview(c.id),'Chapter submitted to assigned reviewer')}>Submit for review</button>}{c.status==='in_review'&&<b>Locked · Reviewer working</b>}{c.status==='reviewed'&&<b>Review complete · Awaiting Admin approval</b>}{role==='admin'&&c.status==='reviewed'&&<button className="accent" onClick={()=>act(()=>platformApi.chapterStatus(c.id,'approved'),'Chapter approved and ready for reuse')}>Final approval</button>}{c.status==='approved'&&<b>✓ Reusable in subjects</b>}</footer>
     </article>})}</div>{!chapters.length&&<Empty text={role==='reviewer'?'No chapters are currently assigned to you.':'Create or import the first Chapter.'}/>}</section>

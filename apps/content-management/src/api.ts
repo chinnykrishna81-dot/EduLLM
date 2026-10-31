@@ -78,6 +78,7 @@ export type LibraryChapter = {
   status: string;
   version: number;
   content: any;
+  topicCount?: number;
   package?: any;
   cycleTest?: any;
   reviewer?: {id:string;displayName:string;email:string};
@@ -210,6 +211,7 @@ export const platformApi = {
   replaceExplorerMedia: (id:string,file:File) => {const form=new FormData();form.append('file',file);return request<{replaced:boolean;id:string}>(`/media-explorer/${id}/replace`,{method:'POST',body:form})},
   deleteExplorerMedia: (id:string) => request<{deleted:boolean;id:string}>(`/media-explorer/${id}`,{method:'DELETE'}),
   chapters: () => request<LibraryChapter[]>('/library/chapters'),
+  chapter: (id:string) => request<LibraryChapter>(`/library/chapters/${id}`),
   reviewers: () => request<Array<{id:string;displayName:string;email:string}>>('/library/reviewers'),
   assignReviewer: (id:string,reviewerId:string) => request<LibraryChapter>(`/library/chapters/${id}/reviewer`,{method:'PUT',body:JSON.stringify({reviewerId})}),
   submitForReview: (id:string) => request<LibraryChapter>(`/library/chapters/${id}/submit-review`,{method:'POST'}),

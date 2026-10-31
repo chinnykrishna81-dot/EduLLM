@@ -93,7 +93,21 @@ export class PlatformService {
     const id=randomUUID(); const r=await query(`INSERT INTO chapter_library(chapter_id,stable_id,title,description,board_tags,grade_tags,subject_tags,language,content,package) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb) RETURNING *`,[id,data.chapter.stableId,data.chapter.title,data.chapter.description,data.chapter.boardTags,data.chapter.gradeTags,data.chapter.subjectTags,data.chapter.language,JSON.stringify(data.content),JSON.stringify(data)]);
     return {chapter:chapterRow(r.rows[0]),validation};
   }
-  async listChapters(user?:any) { await this.ensureReviewSchema();const values=user?.role==='reviewer'?[user.id]:[],where=user?.role==='reviewer'?`WHERE c.reviewer_id=$1 AND c.status IN ('in_review','reviewed')`:'';const r=await query(`SELECT c.*,u.display_name reviewer_name,u.email reviewer_email FROM chapter_library c LEFT JOIN app_user u ON u.user_id=c.reviewer_id ${where} ORDER BY c.updated_at DESC`,values); return r.rows.map(row=>{const chapter=chapterRow(row),safePackage=chapter.package?{...chapter.package,content:undefined,cycleTest:studentCycleTest(chapter.package.cycleTest)}:undefined;return {...chapter,package:safePackage};}); }
+  async listChapters(user?:any) {
+    await this.ensureReviewSchema();
+    const values=user?.role==='reviewer'?[user.id]:[],where=user?.role==='reviewer'?`WHERE c.reviewer_id=$1 AND c.status IN ('in_review','reviewed')`:'';
+    // Return only card/index data. Full content and form questions are loaded
+    // from getChapter when a user opens an editor or review screen.
+    const r=await query(`SELECT c.chapter_id,c.stable_id,c.title,c.description,c.board_tags,c.grade_tags,c.subject_tags,c.language,c.status,c.version,c.reviewer_id,c.submitted_for_review_at,c.created_at,c.updated_at,c.approved_at,jsonb_array_length(COALESCE(c.content->'topics','[]'::jsonb)) topic_count,CASE WHEN c.cycle_test IS NULL THEN NULL ELSE c.cycle_test-'questionBank'-'forms' END cycle_summary,u.display_name reviewer_name,u.email reviewer_email FROM chapter_library c LEFT JOIN app_user u ON u.user_id=c.reviewer_id ${where} ORDER BY c.updated_at DESC`,values);
+    return r.rows.map((row:any)=>({
+      id:row.chapter_id,stableId:row.stable_id,title:row.title,description:row.description,
+      boardTags:row.board_tags,gradeTags:row.grade_tags,subjectTags:row.subject_tags,language:row.language,
+      status:row.status,version:row.version,content:{topics:[]},topicCount:Number(row.topic_count||0),
+      cycleTest:row.cycle_summary||undefined,
+      reviewer:row.reviewer_id?{id:row.reviewer_id,displayName:row.reviewer_name,email:row.reviewer_email}:undefined,
+      submittedForReviewAt:row.submitted_for_review_at,createdAt:row.created_at,updatedAt:row.updated_at,approvedAt:row.approved_at,
+    }));
+  }
   async getChapter(id:string,user?:any) { await this.ensureReviewSchema();await this.assertReviewAccess(id,user);const r=await query('SELECT c.*,u.display_name reviewer_name,u.email reviewer_email FROM chapter_library c LEFT JOIN app_user u ON u.user_id=c.reviewer_id WHERE c.chapter_id=$1',[id]); if(!r.rowCount) throw new NotFoundException('Chapter not found'); return chapterRow(r.rows[0]); }
   async reviewers(){await this.ensureReviewSchema();const r=await query(`SELECT user_id id,email,display_name "displayName" FROM app_user WHERE role='reviewer' AND status='active' ORDER BY display_name`);return r.rows}
   async assignReviewer(id:string,reviewerId:string,user:any){await this.ensureReviewSchema();const reviewer=await query(`SELECT user_id,display_name,email FROM app_user WHERE user_id=$1 AND role='reviewer' AND status='active'`,[reviewerId]);if(!reviewer.rowCount)throw new UnprocessableEntityException('Select an active reviewer');const r=await query(`UPDATE chapter_library SET reviewer_id=$2,updated_at=now() WHERE chapter_id=$1 RETURNING *`,[id,reviewerId]);if(!r.rowCount)throw new NotFoundException('Chapter not found');await this.audit(id,user,'reviewer_assigned','workflow',`Assigned reviewer ${reviewer.rows[0].display_name}`,{reviewerId});return this.getChapter(id)}
