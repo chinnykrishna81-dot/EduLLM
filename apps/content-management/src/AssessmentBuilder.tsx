@@ -10,6 +10,16 @@ type Diff = 'easy'|'medium'|'hard'|'competency';
 // Difficulty sort weight — hard questions repeat first when all are used
 const DIFF_WEIGHT: Record<string,number> = { competency:0, hard:1, medium:2, easy:3 };
 
+export function expandConfiguredFormRepeats(baseForms:any[],totalForms:number,repeatFromForm:number){
+  const repeatFrom=Math.floor(Number(repeatFromForm||0));
+  if(repeatFrom<2||repeatFrom>totalForms)return baseForms.slice(0,totalForms).map((form,index)=>({...form,number:index+1}));
+  const uniqueCount=repeatFrom-1,unique=baseForms.slice(0,uniqueCount);
+  return Array.from({length:totalForms},(_,index)=>{
+    const source=index<uniqueCount?unique[index]:unique[(index-uniqueCount)%uniqueCount];
+    return {...structuredClone(source),number:index+1,status:'draft',repeatedFrom:index<uniqueCount?undefined:((index-uniqueCount)%uniqueCount)+1};
+  });
+}
+
 const defaults = [
   {id:'section-1',title:'Section 1 · MCQ',       questionType:'type1',format:'mcq',       questionsPresented:5,questionsRequired:5,marksPerQuestion:1,difficulties:[...ALL_DIFF]},
   {id:'section-2',title:'Section 2 · Fill blanks',questionType:'type1',format:'fill_blank',questionsPresented:5,questionsRequired:5,marksPerQuestion:1,difficulties:[...ALL_DIFF]},
@@ -171,6 +181,7 @@ export function AssessmentBuilder({kind,value,sourceBank=[],topics=[],chapterId,
     resultDelayHours: value?.resultDelayHours ?? 24,
     retakeAfterDays:  value?.retakeAfterDays || 30,
     formCycleCount:   value?.formCycleCount || 5,
+    repeatFromForm:   value?.repeatFromForm ?? 0,
     practicePercent:  value?.practicePercent ?? 0,
     competencyQuestionsPerForm: value?.competencyQuestionsPerForm ?? 1,
     competencyRepeatLimit: value?.competencyRepeatLimit ?? 0,
@@ -202,7 +213,7 @@ export function AssessmentBuilder({kind,value,sourceBank=[],topics=[],chapterId,
 
   // Keep form count in sync
   useEffect(()=>{
-    setData((c:any)=>({...c,forms:Array.from({length:c.formCycleCount},(_,i)=>
+    setData((c:any)=>({...c,repeatFromForm:Number(c.repeatFromForm)>c.formCycleCount?0:c.repeatFromForm,forms:Array.from({length:c.formCycleCount},(_,i)=>
       c.forms[i] || {number:i+1,status:'draft',sections:c.sections.map((s:any)=>({sectionId:s.id,questionIds:[]}))}
     )}));
     setActive(n => Math.min(n, data.formCycleCount));
@@ -322,7 +333,9 @@ export function AssessmentBuilder({kind,value,sourceBank=[],topics=[],chapterId,
       return chosen;
     };
 
-    const forms = Array.from({length: data.formCycleCount}, (_, formIndex) => {
+    const configuredRepeatFrom=Math.floor(Number(data.repeatFromForm||0));
+    const uniqueFormCount=configuredRepeatFrom>=2&&configuredRepeatFrom<=data.formCycleCount?configuredRepeatFrom-1:data.formCycleCount;
+    const uniqueForms = Array.from({length: uniqueFormCount}, (_, formIndex) => {
       const usedInForm   = new Set<string>();
       const groupsInForm = new Set<string>();
       const topicCountsInForm=new Map<string,number>();
@@ -349,6 +362,8 @@ export function AssessmentBuilder({kind,value,sourceBank=[],topics=[],chapterId,
 
       return { number: formIndex + 1, status: 'draft', sections,competencyShortfall:competencyRemaining };
     });
+    const forms=expandConfiguredFormRepeats(uniqueForms,data.formCycleCount,configuredRepeatFrom);
+    for(const form of forms.slice(uniqueFormCount))for(const id of form.sections.flatMap((section:any)=>section.questionIds||[]))usageCounts.set(id,(usageCounts.get(id)||0)+1);
 
     // Build summary stats
     const totalEligible = new Set(data.sections.flatMap((s: any) => eligible(s).map((q: any) => q.id))).size;
@@ -371,6 +386,7 @@ export function AssessmentBuilder({kind,value,sourceBank=[],topics=[],chapterId,
     update('forms', forms);
     setMessage([
       `${forms.length} form(s) proposed.`,
+      configuredRepeatFrom>=2?`Form ${configuredRepeatFrom} repeats Form 1; later forms continue the same sequence.`:'No forced repeat point; unused eligible questions were consumed first.',
       `${allUsed.size} of ${totalEligible} unique eligible questions used`,
       practiceUsed > 0 ? `(${practiceUsed} practice questions included).` : '.',
       unusedCount > 0
@@ -409,6 +425,7 @@ export function AssessmentBuilder({kind,value,sourceBank=[],topics=[],chapterId,
         ['Result delay hours',      'resultDelayHours', 'number'],
         ['Retake after days',       'retakeAfterDays',  'number'],
         ['Forms in cycle (max 8)', 'formCycleCount',   'number'],
+        ['Repeat from form (0 = automatic)','repeatFromForm','number'],
         ['Competency questions / form','competencyQuestionsPerForm','number'],
         ['Allowed repeats / competency question','competencyRepeatLimit','number'],
         ['Green at %',              'greenPercent',     'number'],
@@ -417,15 +434,16 @@ export function AssessmentBuilder({kind,value,sourceBank=[],topics=[],chapterId,
         <label key={key}>{label}
           <input type={type} value={data[key]}
             min={key==='formCycleCount'?1:type==='number'?0:undefined}
-            max={key==='formCycleCount'?8:undefined}
+            max={key==='formCycleCount'?8:key==='repeatFromForm'?data.formCycleCount:undefined}
             onChange={e=>{
               let v:any = type==='number' ? Number(e.target.value) : e.target.value;
               if(key==='formCycleCount') v = Math.min(8, Math.max(1, v));
+              if(key==='repeatFromForm') v = v===0?0:Math.min(data.formCycleCount,Math.max(2,v));
               update(key, v);
             }}/>
         </label>
       )}
-      <p className="practice-pct-hint">Competency questions are Type 2 questions marked with competency complexity. The proposal prioritizes different topics in each form. Allowed repeats means additional uses after the question's first use; 0 prevents reuse across forms.</p>
+      <p className="practice-pct-hint">Repeat from form is optional. Use 0 to consume unused eligible questions across every form first. If set to 6, Form 6 copies Form 1, Form 7 copies Form 2, and so on. Competency questions are Type 2 questions marked with competency complexity. Allowed repeats means additional uses after the question's first use.</p>
       {/* Practice composition — full-width row below the grid */}
       <label className="practice-pct-field">
         Practice questions in each form
