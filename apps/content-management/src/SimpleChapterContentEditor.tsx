@@ -265,12 +265,14 @@ export function SimpleChapterContentEditor({
   const imageImportInput = useRef<HTMLInputElement>(null);
   const [contentImportFiles, setContentImportFiles] = useState<File[]>([]);
   const [imageImportFiles, setImageImportFiles] = useState<File[]>([]);
+  const [htmlAssets,setHtmlAssets]=useState<any[]>(()=>chapter.content?.competencyHtmlPresentations||[]);
 
   const topic = topics[selection.topicIndex] ?? topics[0],
     node =
       selection.subtopicIndex === undefined
         ? topic
         : topic?.subtopics[selection.subtopicIndex];
+  const selectedHtmlAsset=htmlAssets.find(asset=>asset.topicId===topic?.id);
   const updateNode = (changes: Partial<Topic> | Partial<Subtopic>) =>
     setTopics((current) =>
       current.map((item, index) => {
@@ -295,7 +297,10 @@ export function SimpleChapterContentEditor({
       await platformApi.updateChapter(chapter.id, {
         title: chapter.title,
         description: chapter.description,
-        content: buildContent(chapter, topics),
+        content: {
+          ...buildContent(chapter, topics),
+          competencyHtmlPresentations: htmlAssets,
+        },
       });
       setMsg("Saved successfully.");
     } catch (e: any) {
@@ -362,12 +367,13 @@ export function SimpleChapterContentEditor({
   };
 
   const importCompetencyPatterns = async () => {
-    if (!contentImportFiles.length) { setMsg("Select the competency-pattern JSON file first."); return; }
+    if (!contentImportFiles.length) { setMsg("Select a competency-pattern JSON or HTML file first."); return; }
     setBusy(true); setMsg("");
     try {
       const jsonFile = contentImportFiles.find((file) => file.name.toLowerCase().endsWith(".json"));
-      if (!jsonFile) throw new Error("Select the competency-pattern JSON file.");
       const htmlFile = contentImportFiles.find((file) => file.name.toLowerCase().endsWith(".html"));
+      if(!jsonFile&&htmlFile){const result=await platformApi.uploadCompetencyHtml(chapter.id,topic.id,htmlFile);const importedTopics=initTopics(result.chapter),index=Math.max(0,importedTopics.findIndex(item=>item.id===topic.id));setTopics(importedTopics);setHtmlAssets(result.chapter.content?.competencyHtmlPresentations||[]);setExpandedTopicIds(current=>new Set(current).add(topic.id));setSelection({topicIndex:index,subtopicIndex:0});setTab("preview");setMsg(`Secure HTML presentation uploaded with ${result.presentation.patternIds?.length||result.createdSubtopics.length} pattern section(s).`);return}
+      if(!jsonFile)throw new Error("Select a JSON or HTML competency file.");
       const data = JSON.parse(await jsonFile.text());
       const canonical = importEducationalContent(data);
       if (!canonical.topics[0]?.subtopics.length) throw new Error("The JSON does not contain any importable SUBTOPIC_CONTENT blocks or subtopics.");
@@ -386,12 +392,16 @@ export function SimpleChapterContentEditor({
       if (existingIndex >= 0 && !window.confirm(`Replace the existing “${imported.title}” topic?`)) return;
       const next = existingIndex >= 0 ? topics.map((item, index) => index === existingIndex ? imported : item) : [...topics.filter((item) => !(item.title === "Topic 1" && !item.html && !item.subtopics.length)), imported];
       const index = next.findIndex((item) => item.id === imported.id);
-      await platformApi.updateChapter(chapter.id, {
+      const savedChapter=await platformApi.updateChapter(chapter.id, {
         title: chapter.title,
         description: chapter.description,
-        content: buildContent(chapter, next),
+        content: {
+          ...buildContent(chapter, next),
+          competencyHtmlPresentations: htmlAssets,
+        },
       });
-      setTopics(next); setExpandedTopicIds((current) => new Set(current).add(imported.id)); setSelection({ topicIndex: index, subtopicIndex: 0 }); setTab("preview");
+      const htmlResult=htmlFile?await platformApi.uploadCompetencyHtml(chapter.id,imported.id,htmlFile):undefined,finalChapter=htmlResult?.chapter||savedChapter,finalTopics=initTopics(finalChapter);
+      setTopics(finalTopics);setHtmlAssets(finalChapter.content?.competencyHtmlPresentations||[]); setExpandedTopicIds((current) => new Set(current).add(imported.id)); setSelection({ topicIndex: index, subtopicIndex: 0 }); setTab("preview");
       const warningText=canonical.issues.length?` Validation: ${canonical.issues.map(issue=>`${issue.subtopicId} ${issue.path}: ${issue.message}`).join(" | ")}`:"";
       setMsg(`Imported and saved “${imported.title}” as the next Concepts topic with ${imported.subtopics.length} subtopics${htmlFile ? " using the supplied HTML design" : " from canonical JSON"}${uploaded.length ? ` and ${uploaded.length} uploaded image(s)` : ""}. It is now available in Preview as student.${warningText}`);
     } catch (error: any) { setMsg(error?.message || "Import failed."); }
@@ -534,17 +544,18 @@ export function SimpleChapterContentEditor({
             <label>
               <span>1. JSON and HTML</span>
               <input ref={contentImportInput} type="file" accept=".json,.html" multiple onChange={(event) => setContentImportFiles(Array.from(event.target.files || []))} />
-              <small>{contentImportFiles.length ? contentImportFiles.map((file) => file.name).join(", ") : "JSON required; companion HTML optional"}</small>
+              <small>{contentImportFiles.length ? contentImportFiles.map((file) => file.name).join(", ") : "JSON, HTML, or both together"}</small>
             </label>
             <label>
               <span>2. Referenced images (optional)</span>
               <input ref={imageImportInput} type="file" accept="image/*,.svg" multiple onChange={(event) => setImageImportFiles(Array.from(event.target.files || []))} />
               <small>{imageImportFiles.length ? `${imageImportFiles.length} image(s) selected` : "Select all referenced image files"}</small>
             </label>
-            <button className="sce-import-patterns" disabled={busy || !contentImportFiles.some((file) => file.name.toLowerCase().endsWith(".json"))} onClick={importCompetencyPatterns}>
-              {busy ? "Processing…" : "Process JSON + Images"}
+            <button className="sce-import-patterns" disabled={busy || !contentImportFiles.some((file) => /\.(json|html)$/i.test(file.name))} onClick={importCompetencyPatterns}>
+              {busy ? "Processing…" : "Process competency files"}
             </button>
-            <p className="sce-import-help">Both selections are processed together. Images are uploaded and matched by filename before the topic and subtopics are created.</p>
+            <p className="sce-import-help">JSON remains the structured source for metadata and analytics. HTML becomes the isolated visual presentation. HTML-only uploads attach to the selected Topic.</p>
+            {selectedHtmlAsset&&<div className="sce-html-asset"><small>HTML presentation: {selectedHtmlAsset.fileName}</small><button disabled={busy} onClick={async()=>{if(!window.confirm('Delete this HTML presentation and return to JSON rendering?'))return;setBusy(true);try{const updated=await platformApi.deleteCompetencyHtml(chapter.id,selectedHtmlAsset.id);setTopics(initTopics(updated));setHtmlAssets(updated.content?.competencyHtmlPresentations||[]);setMsg('HTML presentation deleted. Structured JSON content remains available.')}catch(error:any){setMsg(error.message)}finally{setBusy(false)}}}>Delete HTML</button></div>}
           </section>
         </aside>
 
@@ -588,14 +599,7 @@ export function SimpleChapterContentEditor({
                   />
                 </>
               ) : (
-                <div
-                  className="sce-preview"
-                  dangerouslySetInnerHTML={{
-                    __html:
-                      node.html ||
-                      '<p style="color:#9ca3af">Nothing to preview yet.</p>',
-                  }}
-                />
+                node.source?.htmlPresentation&&htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId)?<iframe className="sce-html-preview" sandbox="" referrerPolicy="no-referrer" srcDoc={htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId)?.html} title={`${node.title} HTML presentation`}/>:<div className="sce-preview" dangerouslySetInnerHTML={{__html:node.html||'<p style="color:#9ca3af">Nothing to preview yet.</p>'}}/>
               )}
             </>
           )}

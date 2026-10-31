@@ -30,6 +30,8 @@ export class PlatformController {
   @Post('library/chapter-packages/import') importChapterPackage(@Body() body:any){return this.platform.importChapterPackage(body)}
   @Put('library/chapters/:id') updateChapter(@Req() req:any,@Param('id') id:string,@Body() body:any){return this.platform.updateChapter(id,body,req.user)}
   @Post('library/chapters/:id/topics') importTopics(@Param('id') id:string,@Body() body:any){return this.platform.importTopics(id,body)}
+  @Post('library/chapters/:id/competency-html') @UseInterceptors(FileInterceptor('file',{storage:diskStorage({destination:chapterStorage,filename:(_req,_file,cb)=>cb(null,`${randomUUID()}.html`)}),limits:{fileSize:5*1024*1024},fileFilter:(_req,file,cb)=>cb(null,extname(file.originalname).toLowerCase()==='.html'&&['text/html','application/octet-stream'].includes(file.mimetype))})) uploadCompetencyHtml(@Req() req:any,@Param('id') id:string,@Body() body:any,@UploadedFile() file:Express.Multer.File){return this.platform.uploadCompetencyHtml(id,String(body.topicId||''),file,req.user)}
+  @Delete('library/chapters/:id/competency-html/:assetId') deleteCompetencyHtml(@Req() req:any,@Param('id') id:string,@Param('assetId') assetId:string){return this.platform.deleteCompetencyHtml(id,assetId,req.user)}
   @Delete('library/chapters/:id') deleteChapter(@Param('id') id:string){return this.platform.deleteChapter(id)}
   @Put('library/chapters/:id/cycle-test') updateCycleTest(@Req() req:any,@Param('id') id:string,@Body() body:any){return this.platform.updateCycleTest(id,body,req.user)}
   @Delete('library/chapters/:id/cycle-test/forms') deleteCycleTestForms(@Param('id') id:string){return this.platform.deleteCycleTestForms(id)}

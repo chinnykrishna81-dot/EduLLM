@@ -96,3 +96,5 @@
 .rte-content table { border-collapse: collapse; width: 100%; margin: 12px 0; }
 .rte-content td, .rte-content th { border: 1px solid #e5e7eb; padding: 8px 12px; }
 .rte-content th { background: #eff6ff; font-weight: 600; }
+.sce-html-preview{display:block;width:100%;min-height:75vh;border:0;background:#fff;border-radius:8px}
+.sce-html-asset{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:8px;background:#eef8ff;border-radius:6px}.sce-html-asset button{border:1px solid #c43b32;color:#a4251d;background:#fff;border-radius:5px;padding:5px 8px}

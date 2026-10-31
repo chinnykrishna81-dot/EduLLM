@@ -8,6 +8,7 @@ import {CycleTestExperience} from './CycleTestExperience';
 import {FormattedText} from './FormattedText';
 
 const API=import.meta.env.VITE_API_ORIGIN ?? 'http://localhost:3001';
+function CompetencyHtmlFrame({asset,sectionId,title}:{asset:any;sectionId:string;title:string}){const escaped=String(sectionId).replace(/\\/g,'\\\\').replace(/"/g,'\\"'),visibility=`<style>article.pattern-page{display:none!important}article.pattern-page[id="${escaped}"],[data-pattern-id="${escaped}"]{display:block!important}nav{display:none!important}html,body{margin:0!important;max-width:100%!important}</style>`,srcDoc=String(asset?.html||'').replace(/<\/head>/i,`${visibility}</head>`);return <iframe className="competency-html-frame" sandbox="" referrerPolicy="no-referrer" srcDoc={srcDoc} title={`${title} interactive competency page`}/>}
 const statusKey=(chapterId:string,progressScope:string)=>`edullm-progress:${progressScope}:${chapterId}`;
 type Progress={opened:string[];pageCompleted:string[];completed:string[];resourcesOpened:string[];verified:boolean;mastery:Record<string,'green'|'yellow'|'orange'>;cykRevealed:string[];cycleStartedAt?:string;cycleSubmittedAt?:string;cycleAttempt?:number};
 
@@ -154,7 +155,7 @@ export function ChapterLearning({subject,chapter,back,externalPractice,previewMo
             {page.subtopicDescription&&position===0&&<RichContent className="subtopic-lead" value={page.subtopicDescription}/>}
             {page.title!==primaryTitle&&<h2 className="page-title">{page.title}</h2>}
             <RichContent className="topic-lead" value={page.description}/>
-            {page.document?<PdfLearningPage document={page.document}/>:page.blocks?.length?<PageBlocks blocks={page.blocks} mediaFor={mediaFor}/>:page.concepts.map((c:any)=><ConceptPage concept={c} mediaFor={mediaFor} legacyPractice={!effectiveCp&&!page.knowledgeCheck} hideTitle={sameHeading(c.title,primaryTitle)||sameHeading(c.title,page.title)} key={c.id}/>)}
+            {page.htmlPresentation&&chapter.content?.competencyHtmlPresentations?.find((asset:any)=>asset.id===page.htmlPresentation.assetId)?<CompetencyHtmlFrame asset={chapter.content.competencyHtmlPresentations.find((asset:any)=>asset.id===page.htmlPresentation.assetId)} sectionId={page.htmlPresentation.sectionId} title={primaryTitle}/>:page.document?<PdfLearningPage document={page.document}/>:page.blocks?.length?<PageBlocks blocks={page.blocks} mediaFor={mediaFor}/>:page.concepts.map((c:any)=><ConceptPage concept={c} mediaFor={mediaFor} legacyPractice={!effectiveCp&&!page.knowledgeCheck} hideTitle={sameHeading(c.title,primaryTitle)||sameHeading(c.title,page.title)} key={c.id}/>)}
           </article>
           {topicEnds&&page.knowledgeCheck&&cykRev&&<TopicKnowledgeCheck check={page.knowledgeCheck} topicId={page.topicId} mediaFor={mediaFor} node={()=>{}} status={state=>setCykStatus(c=>({...c,[page.topicId]:state}))}/>}
           <div className="pbp-nav">
