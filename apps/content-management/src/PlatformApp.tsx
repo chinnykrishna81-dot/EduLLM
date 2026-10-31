@@ -34,16 +34,13 @@ export default function PlatformApp({user,logout}:{user:CmsUser;logout:()=>void}
   const loadChapterIndex=async()=>{
     const index=await platformApi.chapters();
     setChapters(index);
-    // Cards render from the small index immediately. Hydrate full chapter data
-    // in the background so existing editor/review actions remain unchanged.
-    void Promise.all(index.map(item=>platformApi.chapter(item.id))).then(setChapters).catch(()=>undefined);
     return index;
   };
   const load=async(target:View=view)=>{
     if(target==='dashboard'){
       if(user.role==='admin')setDashboard(await platformApi.adminDashboard());
       else if(user.role==='reviewer')await loadChapterIndex();
-      else{const [c,s]=await Promise.all([platformApi.chapters(),platformApi.subjects()]);setChapters(c);setSubjects(s);void Promise.all(c.map(item=>platformApi.chapter(item.id))).then(setChapters).catch(()=>undefined)}
+      else{const [c,s]=await Promise.all([platformApi.chapters(),platformApi.subjects()]);setChapters(c);setSubjects(s)}
       return;
     }
     if(target==='chapters'){await loadChapterIndex();return}
@@ -179,11 +176,15 @@ function ChapterLibrary({chapters,busy,act,canApprove,role,onQBank}:{chapters:Li
   const [reviewing,setReviewing]=useState<LibraryChapter>(),[building,setBuilding]=useState<LibraryChapter>(),[configuring,setConfiguring]=useState<LibraryChapter>(),[bankQuestions,setBankQuestions]=useState<any[]>([]),[reviewers,setReviewers]=useState<Array<{id:string;displayName:string;email:string}>>([]);
   const [wordUploadChapter,setWordUploadChapter]=useState<LibraryChapter>();
   useEffect(()=>{if(role!=='reviewer')platformApi.reviewers().then(setReviewers).catch(()=>setReviewers([]))},[role]);
+  useEffect(()=>{if(reviewing?.topicCount!==undefined)platformApi.chapter(reviewing.id).then(setReviewing).catch(error=>window.alert(error.message))},[reviewing]);
+  useEffect(()=>{if(building?.topicCount!==undefined)platformApi.chapter(building.id).then(setBuilding).catch(error=>window.alert(error.message))},[building]);
+  useEffect(()=>{if(configuring?.topicCount!==undefined)platformApi.chapter(configuring.id).then(setConfiguring).catch(error=>window.alert(error.message))},[configuring]);
   const create=()=>act(()=>platformApi.createChapter({title,description:'',boardTags:[],gradeTags:[],subjectTags:[],content:{id:`chapter-${browserId()}`,title,description:'',mediaRefs:[],topics:[]}}),'Blank reusable chapter created');
   const parse=()=>{try{return JSON.parse(json)}catch(e:any){setValidation({success:false,issues:[{severity:'error',path:'JSON',message:e.message}]});return null}};
   const validate=async()=>{const parsed=parse();if(parsed)setValidation(await platformApi.validateChapterPackage(parsed))};
   const importPackage=()=>{const parsed=parse();if(parsed)act(async()=>{const result=await platformApi.importChapterPackage(parsed);setValidation(result.validation);setImporting(false);setJson('')},'Chapter Package imported as Draft')};
   const download=()=>{const blob=new Blob([JSON.stringify(chapterPackageSample,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const anchor=document.createElement('a');anchor.href=url;anchor.download='cbse10-science-chemical-reactions.chapter.json';anchor.click();URL.revokeObjectURL(url)};
+  if(reviewing?.topicCount!==undefined||building?.topicCount!==undefined||configuring?.topicCount!==undefined)return <section className="page"><p className="p-empty">Loading chapter content…</p></section>;
   if(reviewing)return <ChapterReviewWorkspace chapter={reviewing} busy={busy} canApprove={role==='reviewer'} reviewerMode={role==='reviewer'} back={()=>setReviewing(undefined)} save={async content=>{if(await act(()=>platformApi.updateChapter(reviewing.id,{content,title:content.title,description:content.description}),role==='reviewer'?'Correction saved within the active review':'Correction saved as Draft'))setReviewing(undefined)}} approve={()=>{act(()=>platformApi.chapterStatus(reviewing.id,role==='reviewer'?'reviewed':'approved'),role==='reviewer'?'Review completed and submitted to Admin':'Chapter approved and ready for reuse');setReviewing(undefined)}} requestChanges={()=>{act(()=>platformApi.chapterStatus(reviewing.id,'draft'),'Changes requested; chapter returned to its creator');setReviewing(undefined)}}/>;
   if(building)return <SimpleChapterContentEditor chapter={building} exit={()=>{setBuilding(undefined);act(()=>Promise.resolve(),'Chapter library refreshed')}}/>;
   if(wordUploadChapter)return <ChapterWordUpload chapterId={wordUploadChapter.id} chapterTitle={wordUploadChapter.title} role={role} onBack={()=>setWordUploadChapter(undefined)}/>;
