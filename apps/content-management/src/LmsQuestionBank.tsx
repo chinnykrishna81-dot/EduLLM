@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { QuestionDetailEditor } from './QuestionDetailEditor';
 import { browserId } from './browserId';
 import { FormattedText } from './FormattedText';
+import { selectPracticeQuestionIds } from './practiceSelection';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import readXlsxFile from 'read-excel-file/browser';
 
@@ -1029,6 +1030,7 @@ function PracticeConfig({
   const [previewIds, setPreviewIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [selectionWarning, setSelectionWarning] = useState('');
 
   const approved = questions.filter(q =>
     q.status !== 'excluded' && (typeFilter === 'both' || q.type === typeFilter)
@@ -1041,15 +1043,14 @@ function PracticeConfig({
   }, [approved]);
 
   const autoSelect = () => {
-    const byPat = new Map<string, any[]>();
-    for (const q of approved) {
-      if (!selDiff.includes(q.difficulty)) continue;
-      const p = q.patternId || '(no pattern)';
-      if (!byPat.has(p)) byPat.set(p, []);
-      byPat.get(p)!.push(q);
-    }
-    const ids = new Set<string>();
-    byPat.forEach(qs => qs.slice(0, perPat).forEach((q: any) => ids.add(q.id)));
+    const { ids, missing } = selectPracticeQuestionIds(approved, selDiff, perPat, typeFilter);
+    const missingType1 = missing.filter(item => item.type === 'type1').length;
+    const missingType2 = missing.filter(item => item.type === 'type2').length;
+    const details = [
+      missingType1 ? `${missingType1} pattern(s) have no eligible Type 1 question` : '',
+      missingType2 ? `${missingType2} pattern(s) have no eligible Type 2 question` : '',
+    ].filter(Boolean).join('; ');
+    setSelectionWarning(details ? `${details}. Check the selected difficulty levels or add questions for those patterns.` : '');
     setPreviewIds(ids);
     setMode('preview');
   };
@@ -1107,7 +1108,7 @@ function PracticeConfig({
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#475569' }}>Questions per pattern</div>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#475569' }}>Questions per pattern {typeFilter === 'both' ? 'per type' : ''}</div>
               <input type="number" min={1} max={10} value={perPat}
                 onChange={e => setPerPat(Math.max(1, Number(e.target.value)))}
                 style={{ width: 64, border: '1px solid #e2e8f0', borderRadius: 6, padding: '5px 8px', fontSize: 14 }} />
@@ -1115,7 +1116,7 @@ function PracticeConfig({
           </div>
           <div style={{ marginBottom: 16, padding: '10px 14px', background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 13, color: '#64748b' }}>
             <strong>{patterns.length}</strong> unique patterns · <strong>{approved.length}</strong> eligible {typeFilter === 'both' ? '' : typeFilter + ' '}questions.
-            {selDiff.length > 0 && <span> Will pick up to <strong>{perPat}</strong> {selDiff.join('/')} question(s) per pattern.</span>}
+            {selDiff.length > 0 && <span> Will pick up to <strong>{perPat}</strong> {selDiff.join('/')} question(s) per pattern{typeFilter === 'both' ? ' for each type' : ''}.</span>}
           </div>
           <button disabled={selDiff.length === 0 || approved.length === 0}
             style={{ padding: '8px 20px', borderRadius: 8, border: 0, background: '#0ea5e9', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: selDiff.length === 0 ? 0.5 : 1 }}
@@ -1135,6 +1136,11 @@ function PracticeConfig({
               {busy ? 'Publishing…' : `Publish Practice Set (${previewIds.size})`}
             </button>
           </div>
+          {selectionWarning && (
+            <div style={{ marginBottom: 12, padding: '9px 12px', borderRadius: 6, border: '1px solid #fde68a', background: '#fffbeb', color: '#92400e', fontSize: 12 }}>
+              {selectionWarning}
+            </div>
+          )}
           {previewIds.size === 0 && <div style={{ color: '#94a3b8', padding: '24px 0', textAlign: 'center' }}>No questions selected — go back and adjust criteria.</div>}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {approved.map((q, i) => {
