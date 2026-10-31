@@ -290,7 +290,7 @@ function PracticeType1Student({ question }: { question: Question }) {
 
   return (
     <div>
-      <p className="pv-qtext">{question.question}</p>
+      <p className="pv-qtext"><FormattedText value={question.question} as="span" /></p>
       {isText ? (
         <label className="pv-fill">
           <span>Your answer</span>
@@ -304,7 +304,7 @@ function PracticeType1Student({ question }: { question: Question }) {
             <label key={opt}
               className={`pv-opt${choice === opt ? ' chosen' : ''}${revealed && opt === question.correctAnswer ? ' correct' : revealed && choice === opt && opt !== question.correctAnswer ? ' wrong' : ''}`}>
               <input type="radio" name={question.id} checked={choice === opt} disabled={revealed} onChange={() => setChoice(opt)} />
-              <span>{opt}</span>
+              <FormattedText value={opt} as="span" />
             </label>
           ))}
         </div>
@@ -340,16 +340,16 @@ function PracticeType2Student({ question }: { question: Question }) {
 
   return (
     <div>
-      <p className="pv-qtext">{question.question}</p>
+      <p className="pv-qtext"><FormattedText value={question.question} as="span" /></p>
       <p className="pv-t2-hint">Choose one answer for each step to build the complete answer.</p>
       {steps.map((step, i) => (
         <div key={step.id} className="pv-step">
-          <div className="pv-step-header"><b>{i + 1}.</b><span>{step.prompt}</span></div>
+          <div className="pv-step-header"><b>{i + 1}.</b><FormattedText value={step.prompt} as="span" /></div>
           <div className="pv-step-choices">
             {jumble(step.options || [], step.id).map(opt => (
               <button key={opt} disabled={submitted}
                 className={`pv-step-choice${answers[step.id] === opt ? ' selected' : ''}${submitted && opt === step.answer ? ' correct' : submitted && answers[step.id] === opt && opt !== step.answer ? ' wrong' : ''}`}
-                onClick={() => choose(step.id, opt)}>{opt}</button>
+                onClick={() => choose(step.id, opt)}><FormattedText value={opt} as="span" /></button>
             ))}
           </div>
           {submitted && (

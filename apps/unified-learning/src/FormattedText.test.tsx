@@ -43,4 +43,14 @@ describe('formattedTextHtml', () => {
     expect(html).not.toContain('position');
     expect(html).not.toContain('onclick');
   });
+
+  it('renders imported caret exponent notation as superscript', () => {
+    const html = formattedTextHtml('Write 2^3 × 5^-2, x^{12}, a^n and y^(n+1) in index form.');
+    expect(html).toContain('2<sup>3</sup>');
+    expect(html).toContain('5<sup>-2</sup>');
+    expect(html).toContain('x<sup>12</sup>');
+    expect(html).toContain('a<sup>n</sup>');
+    expect(html).toContain('y<sup>(n+1)</sup>');
+    expect(html).not.toContain('^');
+  });
 });

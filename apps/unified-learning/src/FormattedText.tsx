@@ -5,7 +5,12 @@ const escapeHtml = (value: string) => value
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;');
 
-const inlineMarkdown = (value: string) => value
+const exponentNotation = (value: string) => value
+  .replace(/\^\{([^{}\n<>]{1,30})\}/g, '<sup>$1</sup>')
+  .replace(/\^\(([^()\n<>]{1,30})\)/g, '<sup>($1)</sup>')
+  .replace(/\^([+\-−]?(?:\d+(?:\/\d+)?|[A-Za-z]))/g, '<sup>$1</sup>');
+
+const inlineMarkdown = (value: string) => exponentNotation(value)
   .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
   .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
   .replace(/__([^_\n]+?)__/g, '<strong>$1</strong>')
@@ -82,7 +87,7 @@ export function formattedTextHtml(value: unknown) {
   return sanitize(hasHtml ? markdownInHtml(source) : markdownBlocks(escapeHtml(source)));
 }
 
-export function FormattedText({ value, className }: { value: unknown; className?: string }) {
+export function FormattedText({ value, className, as: Tag = 'div' }: { value: unknown; className?: string; as?: 'div' | 'span' }) {
   const html = formattedTextHtml(value);
-  return html ? <div className={className} dangerouslySetInnerHTML={{ __html: html }} /> : null;
+  return html ? <Tag className={className} dangerouslySetInnerHTML={{ __html: html }} /> : null;
 }

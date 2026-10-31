@@ -479,7 +479,7 @@ function QuestionCard({ q, index, topics }: { q: any; index: number; topics: any
   return (
     <article style={{ background: '#fff', border: '1px solid #dce5f0', borderRadius: 16, padding: 23, margin: '15px 0', boxShadow: '0 4px 14px rgba(25,48,76,.04)' }}>
       <CardMeta q={q} index={index} topics={topics} typeLabel="Type 1" typeColor="#1a56db" />
-      <p style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.5, margin: '0 0 15px', color: '#19304c' }}>{q.question}</p>
+      <p style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.5, margin: '0 0 15px', color: '#19304c' }}><FormattedText value={q.question} as="span" /></p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         {(q.options || []).map((opt: string, i: number) => {
           const picked = selected === opt;
@@ -488,7 +488,7 @@ function QuestionCard({ q, index, topics }: { q: any; index: number; topics: any
           return (
             <label key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, border: `1px solid ${isGood ? '#86efac' : isBad ? '#fca5a5' : picked ? '#93c5fd' : '#d4dfeb'}`, borderRadius: 10, padding: 12, cursor: revealed ? 'default' : 'pointer', lineHeight: 1.4, background: isGood ? '#f0fdf4' : isBad ? '#fef2f2' : picked ? '#f0f7ff' : '#fff', transition: 'background .12s' }}>
               <input type="radio" name={`prev-${q.id}`} disabled={revealed} checked={picked} onChange={() => setSelected(opt)} style={{ marginTop: 3, flexShrink: 0 }} />
-              <span><strong style={{ color: isGood ? '#16a34a' : '#56718c' }}>{LETTERS[i]}.</strong> {opt}</span>
+              <span><strong style={{ color: isGood ? '#16a34a' : '#56718c' }}>{LETTERS[i]}.</strong> <FormattedText value={opt} as="span" /></span>
             </label>
           );
         })}
@@ -541,7 +541,7 @@ function Type2Card({ q, index, topics }: { q: any; index: number; topics: any[] 
   return (
     <article style={{ background: '#fff', border: '1px solid #dce5f0', borderRadius: 16, padding: 23, margin: '15px 0', boxShadow: '0 4px 14px rgba(25,48,76,.04)' }}>
       <CardMeta q={q} index={index} topics={topics} typeLabel="Type 2" typeColor="#7c3aed" />
-      <p style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.5, margin: '0 0 18px', color: '#19304c' }}>{q.question || <em style={{ color: '#94a3b8' }}>No main question text</em>}</p>
+      <p style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.5, margin: '0 0 18px', color: '#19304c' }}>{q.question?<FormattedText value={q.question} as="span" />:<em style={{ color: '#94a3b8' }}>No main question text</em>}</p>
 
       {steps.map((step: any, si: number) => {
         const ss = stepStates[si] || { selected: null, revealed: true };
@@ -552,7 +552,7 @@ function Type2Card({ q, index, topics }: { q: any; index: number; topics: any[] 
           <div key={step.id || si} style={{ border: `1px solid ${ss.revealed ? (isCorrect ? '#86efac' : '#fca5a5') : '#e2e8f0'}`, borderRadius: 12, padding: 16, marginBottom: 12, background: '#f8fafc', transition: 'border-color .2s' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 10 }}>
               <span style={{ background: '#225ca3', color: '#fff', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{si + 1}</span>
-              <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#1e293b', flex: 1, lineHeight: 1.5 }}>{step.prompt || <em style={{ color: '#94a3b8', fontWeight: 400 }}>No sub-question</em>}</p>
+              <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#1e293b', flex: 1, lineHeight: 1.5 }}>{step.prompt?<FormattedText value={step.prompt} as="span" />:<em style={{ color: '#94a3b8', fontWeight: 400 }}>No sub-question</em>}</p>
               <span style={{ fontSize: 11, color: '#94a3b8', flexShrink: 0, whiteSpace: 'nowrap' }}>
                 {step.marks} mk{step.isCritical ? ' · critical' : ''}
               </span>
@@ -567,7 +567,7 @@ function Type2Card({ q, index, topics }: { q: any; index: number; topics: any[] 
                   return (
                     <label key={oi} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, border: `1px solid ${isGood ? '#86efac' : isBad ? '#fca5a5' : picked ? '#93c5fd' : '#d4dfeb'}`, borderRadius: 8, padding: '8px 10px', cursor: ss.revealed ? 'default' : 'pointer', background: isGood ? '#f0fdf4' : isBad ? '#fef2f2' : picked ? '#f0f7ff' : '#fff', transition: 'background .12s' }}>
                       <input type="radio" name={`step-${q.id}-${si}`} disabled={ss.revealed} checked={picked} onChange={() => selectStep(si, opt)} style={{ marginTop: 2, flexShrink: 0 }} />
-                      <span style={{ fontSize: 13 }}><strong style={{ color: '#56718c' }}>{LETTERS[oi]}.</strong> {opt}</span>
+                      <span style={{ fontSize: 13 }}><strong style={{ color: '#56718c' }}>{LETTERS[oi]}.</strong> <FormattedText value={opt} as="span" /></span>
                     </label>
                   );
                 })}

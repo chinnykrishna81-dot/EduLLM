@@ -56,7 +56,7 @@ function FpType1({question,num,sectionMarks,reviewDetails=false,media=[]}:{quest
   const isFill = question.format==='fill_blank'||question.format==='one_line'||(question.options||[]).length===0;
   return <div style={S.qCard}>
     <span style={S.qLabel}>Q{num} · {String(question.format||'MCQ').replace('_',' ').toUpperCase()} · {sectionMarks} mark{sectionMarks!==1?'s':''}</span>
-    <p style={S.qText}>{question.question}</p>
+    <p style={S.qText}><FormattedText value={question.question} as="span" /></p>
     <ReviewMedia refs={question.mediaRefs} media={media}/>
     {isFill
       ? <div style={S.fillBox}>Your answer: ___________________________</div>
@@ -64,7 +64,7 @@ function FpType1({question,num,sectionMarks,reviewDetails=false,media=[]}:{quest
           {(question.options||[]).map((opt:string,i:number)=>(
             <label key={i} style={S.optRow}>
               <input type="radio" disabled style={{width:18,height:18,flexShrink:0}}/>
-              <span>{opt}</span>
+              <FormattedText value={opt} as="span" />
             </label>
           ))}
         </div>
@@ -77,15 +77,15 @@ function FpType2({question,num,sectionMarks,reviewDetails=false,media=[]}:{quest
   const perStep = Math.round((sectionMarks/(question.steps?.length||1))*100)/100;
   return <div style={S.qCard}>
     <span style={S.qLabel}>Q{num} · GUIDED TYPE 2 · {sectionMarks} marks total</span>
-    <p style={S.qText}>{question.question}</p>
+    <p style={S.qText}><FormattedText value={question.question} as="span" /></p>
     <ReviewMedia refs={question.mediaRefs} media={media}/>
     <p style={S.instr}>Choose or drag one answer for every step.</p>
     {(question.steps||[]).map((step:any,si:number)=>(
       <div key={step.id||si} style={S.stepSec}>
-        <b style={S.stepLbl}>{si+1}. {step.prompt}</b>
+        <b style={S.stepLbl}>{si+1}. <FormattedText value={step.prompt} as="span" /></b>
         <div style={S.tray}>
           {(step.options||[]).map((opt:string,oi:number)=>(
-            <button key={oi} style={S.choice} disabled><i style={{color:'#728596'}}>⠿</i>{opt}</button>
+            <button key={oi} style={S.choice} disabled><i style={{color:'#728596'}}>⠿</i><FormattedText value={opt} as="span" /></button>
           ))}
         </div>
         <div style={S.dropZone}>Drop or select your answer here</div>
