@@ -318,6 +318,22 @@ export function SimpleChapterContentEditor({
     setSelection({ topicIndex: topics.length });
   };
 
+  const insertTopic = (index: number) => {
+    const inserted: Topic = {
+      id: uid(),
+      title: `Topic ${index + 1}`,
+      html: "",
+      subtopics: [],
+    };
+    setTopics((current) => [
+      ...current.slice(0, index),
+      inserted,
+      ...current.slice(index),
+    ]);
+    setSelection({ topicIndex: index });
+    setTab("edit");
+  };
+
   const addSubtopic = (topicIndex: number) => {
     const nextIndex = topics[topicIndex].subtopics.length;
     setTopics((current) =>
@@ -461,6 +477,18 @@ export function SimpleChapterContentEditor({
                     {t.title || `Topic ${i + 1}`}
                   </span>
                   <span className="sce-folder-count">{t.subtopics.length}</span>
+                  <button
+                    className="sce-insert-topic"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      insertTopic(i);
+                    }}
+                    title="Insert a new topic before this topic"
+                    type="button"
+                  >
+                    + Before
+                  </button>
                   {topics.length > 1 && (
                     <button
                       className="sce-del-topic"
@@ -516,6 +544,14 @@ export function SimpleChapterContentEditor({
                     onClick={() => setSelection({ topicIndex: i })}
                   >
                     {t.title || `Topic ${i + 1}`}
+                  </button>
+                  <button
+                    className="sce-insert-topic"
+                    onClick={() => insertTopic(i)}
+                    title="Insert a new topic before this topic"
+                    type="button"
+                  >
+                    + Before
                   </button>
                   {topics.length > 1 && (
                     <button
