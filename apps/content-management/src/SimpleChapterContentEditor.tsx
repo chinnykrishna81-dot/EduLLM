@@ -437,15 +437,27 @@ export function SimpleChapterContentEditor({
 
   const importCompetencyPatterns = async () => {
     if (!contentImportFiles.length) { setMsg("Select a competency-pattern JSON or HTML file first."); return; }
-    setBusy(true); setMsg("");
+    setBusy(true); setMsg("Validating selected competency files…");
+    let completed = false;
     try {
       const jsonFile = contentImportFiles.find((file) => file.name.toLowerCase().endsWith(".json"));
       const htmlFile = contentImportFiles.find((file) => /\.html?$/i.test(file.name));
-      if(!jsonFile&&htmlFile){const result=await platformApi.uploadCompetencyHtml(chapter.id,topic.id,htmlFile);const importedTopics=initTopics(result.chapter),index=Math.max(0,importedTopics.findIndex(item=>item.id===topic.id));setTopics(importedTopics);setHtmlAssets(result.chapter.content?.competencyHtmlPresentations||[]);setExpandedTopicIds(current=>new Set(current).add(topic.id));setSelection({topicIndex:index,subtopicIndex:0});setTab("preview");setMsg(`Secure HTML presentation uploaded with ${result.presentation.patternIds?.length||result.createdSubtopics.length} pattern section(s).`);return}
+      if(!jsonFile&&htmlFile){
+        if(!topic)throw new Error("Create or select a topic before uploading HTML.");
+        setMsg("Saving the current topic hierarchy before uploading HTML…");
+        await platformApi.updateChapter(chapter.id,{title:chapter.title,description:chapter.description,content:{...buildContent(chapter,topics),competencyHtmlPresentations:htmlAssets}});
+        setMsg("Uploading and securing the HTML presentation…");
+        const result=await platformApi.uploadCompetencyHtml(chapter.id,topic.id,htmlFile);
+        const importedTopics=initTopics(result.chapter),index=Math.max(0,importedTopics.findIndex(item=>item.id===topic.id));
+        setTopics(importedTopics);setHtmlAssets(result.chapter.content?.competencyHtmlPresentations||[]);setExpandedTopicIds(current=>new Set(current).add(topic.id));setSelection({topicIndex:index,subtopicIndex:0});setTab("preview");
+        setMsg(`Secure HTML presentation uploaded with ${result.presentation.patternIds?.length||result.createdSubtopics.length} pattern section(s).`);completed=true;return;
+      }
       if(!jsonFile)throw new Error("Select a JSON or HTML competency file.");
-      const data = JSON.parse(await jsonFile.text());
+      let data:any;
+      try{data=JSON.parse(await jsonFile.text())}catch(error:any){throw new Error(`JSON validation failed: ${error.message}`)}
       const canonical = importEducationalContent(data);
       if (!canonical.topics[0]?.subtopics.length) throw new Error("The JSON does not contain any importable SUBTOPIC_CONTENT blocks or subtopics.");
+      setMsg(imageImportFiles.length?"Uploading referenced images…":"Preparing competency topics and subtopics…");
       const uploaded: any[] = imageImportFiles.length ? await platformApi.uploadChapterMedia(chapter.id, imageImportFiles) : [];
       const imageUrls = new Map(uploaded.map((item: any) => [mediaFileName(item.fileName), item.url]));
       const articles = patternArticles(htmlFile ? await htmlFile.text() : "");
@@ -461,6 +473,7 @@ export function SimpleChapterContentEditor({
       if (existingIndex >= 0 && !window.confirm(`Replace the existing “${imported.title}” topic?`)) return;
       const next = existingIndex >= 0 ? topics.map((item, index) => index === existingIndex ? imported : item) : [...topics.filter((item) => !(item.title === "Topic 1" && !item.html && !item.subtopics.length)), imported];
       const index = next.findIndex((item) => item.id === imported.id);
+      setMsg("Saving imported JSON content…");
       const savedChapter=await platformApi.updateChapter(chapter.id, {
         title: chapter.title,
         description: chapter.description,
@@ -469,16 +482,20 @@ export function SimpleChapterContentEditor({
           competencyHtmlPresentations: htmlAssets,
         },
       });
+      if(htmlFile)setMsg("Uploading and securing the matching HTML presentation…");
       const htmlResult=htmlFile?await platformApi.uploadCompetencyHtml(chapter.id,imported.id,htmlFile):undefined,finalChapter=htmlResult?.chapter||savedChapter,finalTopics=initTopics(finalChapter);
       setTopics(finalTopics);setHtmlAssets(finalChapter.content?.competencyHtmlPresentations||[]); setExpandedTopicIds((current) => new Set(current).add(imported.id)); setSelection({ topicIndex: index, subtopicIndex: 0 }); setTab("preview");
       const warningText=canonical.issues.length?` Validation: ${canonical.issues.map(issue=>`${issue.subtopicId} ${issue.path}: ${issue.message}`).join(" | ")}`:"";
       setMsg(`Imported and saved “${imported.title}” as the next Concepts topic with ${imported.subtopics.length} subtopics${htmlFile ? " using the supplied HTML design" : " from canonical JSON"}${uploaded.length ? ` and ${uploaded.length} uploaded image(s)` : ""}. It is now available in Preview as student.${warningText}`);
-    } catch (error: any) { setMsg(error?.message || "Import failed."); }
+      completed=true;
+    } catch (error: any) { setMsg(`Competency import failed: ${error?.message || "Unknown error"}`); }
     finally {
       setBusy(false);
-      setContentImportFiles([]); setImageImportFiles([]);
-      if (contentImportInput.current) contentImportInput.current.value = "";
-      if (imageImportInput.current) imageImportInput.current.value = "";
+      if(completed){
+        setContentImportFiles([]); setImageImportFiles([]);
+        if (contentImportInput.current) contentImportInput.current.value = "";
+        if (imageImportInput.current) imageImportInput.current.value = "";
+      }
     }
   };
 
