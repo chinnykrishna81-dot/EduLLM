@@ -266,6 +266,8 @@ export function SimpleChapterContentEditor({
   const [contentImportFiles, setContentImportFiles] = useState<File[]>([]);
   const [imageImportFiles, setImageImportFiles] = useState<File[]>([]);
   const [htmlAssets,setHtmlAssets]=useState<any[]>(()=>chapter.content?.competencyHtmlPresentations||[]);
+  const [draggedTopicId,setDraggedTopicId]=useState<string>();
+  const [dropTopicId,setDropTopicId]=useState<string>();
 
   const topic = topics[selection.topicIndex] ?? topics[0],
     node =
@@ -333,6 +335,57 @@ export function SimpleChapterContentEditor({
     setSelection({ topicIndex: index });
     setTab("edit");
   };
+
+  const nestTopic = (sourceId: string, parentId: string) => {
+    if (!sourceId || sourceId === parentId) return;
+    const source = topics.find((item) => item.id === sourceId);
+    const parent = topics.find((item) => item.id === parentId);
+    if (!source || !parent) return;
+    if (source.subtopics.length) {
+      setMsg(`"${source.title}" already contains subtopics. Move or remove those subtopics before nesting this topic.`);
+      return;
+    }
+    if (!window.confirm(`Move "${source.title}" under "${parent.title}" as a subtopic?`)) return;
+    const sourceMetadata = { ...(source.source || {}) };
+    for (const key of ["id", "title", "sequence", "syllabusCode", "introductionPages", "subtopics"])
+      delete sourceMetadata[key];
+    const child: Subtopic = { id: source.id, title: source.title, html: source.html, source: sourceMetadata };
+    const next = topics
+      .filter((item) => item.id !== sourceId)
+      .map((item) => item.id === parentId ? { ...item, subtopics: [...item.subtopics, child] } : item);
+    const parentIndex = next.findIndex((item) => item.id === parentId);
+    const childIndex = next[parentIndex].subtopics.length - 1;
+    setTopics(next);
+    setExpandedTopicIds((current) => new Set(current).add(parentId));
+    setSelection({ topicIndex: parentIndex, subtopicIndex: childIndex });
+    setTab("edit");
+    setMsg(`Moved "${source.title}" under "${parent.title}". Save Draft to keep the new hierarchy.`);
+  };
+
+  const topicDragProps = (topicId: string) => ({
+    draggable: true,
+    onDragStart: (event: React.DragEvent<HTMLElement>) => {
+      setDraggedTopicId(topicId);
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", topicId);
+    },
+    onDragOver: (event: React.DragEvent<HTMLElement>) => {
+      if (draggedTopicId && draggedTopicId !== topicId) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        setDropTopicId(topicId);
+      }
+    },
+    onDragLeave: () => setDropTopicId((current) => current === topicId ? undefined : current),
+    onDrop: (event: React.DragEvent<HTMLElement>) => {
+      event.preventDefault();
+      const sourceId = event.dataTransfer.getData("text/plain") || draggedTopicId || "";
+      setDraggedTopicId(undefined);
+      setDropTopicId(undefined);
+      nestTopic(sourceId, topicId);
+    },
+    onDragEnd: () => { setDraggedTopicId(undefined); setDropTopicId(undefined); },
+  });
 
   const addSubtopic = (topicIndex: number) => {
     const nextIndex = topics[topicIndex].subtopics.length;
@@ -449,6 +502,7 @@ export function SimpleChapterContentEditor({
       <div className="sce-layout">
         <aside className="sce-sidebar">
           <p className="sce-sidebar-label">Topics</p>
+          <small className="sce-drag-help">Drag a topic onto another topic to make it a subtopic.</small>
           {topics.map((t, i) =>
             t.subtopics.length > 0 ? (
               <details
@@ -466,7 +520,8 @@ export function SimpleChapterContentEditor({
                 open={expandedTopicIds.has(t.id)}
               >
                 <summary
-                  className={`sce-topic-folder-summary ${selection.topicIndex === i ? "active" : ""}`}
+                  {...topicDragProps(t.id)}
+                  className={`sce-topic-folder-summary ${selection.topicIndex === i ? "active" : ""} ${draggedTopicId === t.id ? "dragging" : ""} ${dropTopicId === t.id ? "drop-target" : ""}`}
                   onClick={() => setSelection({ topicIndex: i })}
                 >
                   <span className="sce-folder-chevron" aria-hidden="true" />
@@ -537,7 +592,8 @@ export function SimpleChapterContentEditor({
             ) : (
               <div className="sce-topic-group" key={t.id}>
                 <div
-                  className={`sce-topic-row ${selection.topicIndex === i && selection.subtopicIndex === undefined ? "active" : ""}`}
+                  {...topicDragProps(t.id)}
+                  className={`sce-topic-row ${selection.topicIndex === i && selection.subtopicIndex === undefined ? "active" : ""} ${draggedTopicId === t.id ? "dragging" : ""} ${dropTopicId === t.id ? "drop-target" : ""}`}
                 >
                   <button
                     className="sce-topic-btn"

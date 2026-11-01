@@ -15,6 +15,7 @@
 
 .sce-sidebar { background: #fff; border-right: 1px solid #e5e7eb; padding: 20px 16px; display: flex; flex-direction: column; gap: 4px; min-height: 0; overflow-y: auto; }
 .sce-sidebar-label { font-size: 11px; font-weight: 800; color: #6b7280; letter-spacing: .08em; margin-bottom: 6px; }
+.sce-drag-help { display:block; margin:-3px 0 8px; color:#64748b; font-size:10px; line-height:1.35; }
 .sce-topic-row { display: flex; align-items: center; gap: 4px; border-radius: 6px; }
 .sce-topic-row.active { background: #eff6ff; }
 .sce-topic-btn { flex: 1; text-align: left; background: none; border: none; padding: 9px 10px; font-size: 13px; color: #374151; cursor: pointer; border-radius: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -27,6 +28,9 @@
 .sce-topic-folder-summary { display: grid; grid-template-columns: 10px 20px minmax(0, 1fr) auto auto auto; align-items: center; gap: 5px; min-height: 38px; padding: 2px 4px 2px 8px; border-radius: 6px; color: #374151; cursor: pointer; }
 .sce-topic-folder-summary:hover { background: #f3f4f6; }
 .sce-topic-folder-summary.active { background: #eff6ff; color: #1a56db; font-weight: 600; }
+.sce-topic-row[draggable="true"], .sce-topic-folder-summary[draggable="true"] { cursor: grab; }
+.sce-topic-row.dragging, .sce-topic-folder-summary.dragging { opacity:.45; }
+.sce-topic-row.drop-target, .sce-topic-folder-summary.drop-target { background:#dcfce7; outline:2px solid #22c55e; outline-offset:-2px; }
 .sce-folder-chevron { width: 0; height: 0; border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-left: 6px solid currentColor; transition: transform .15s ease; }
 .sce-topic-folder[open] > .sce-topic-folder-summary .sce-folder-chevron { transform: rotate(90deg); }
 .sce-folder-icon { font-size: 15px; line-height: 1; }
