@@ -110,7 +110,32 @@ export class PlatformService {
   }
   async getChapter(id:string,user?:any) { await this.ensureReviewSchema();await this.assertReviewAccess(id,user);const r=await query('SELECT c.*,u.display_name reviewer_name,u.email reviewer_email FROM chapter_library c LEFT JOIN app_user u ON u.user_id=c.reviewer_id WHERE c.chapter_id=$1',[id]); if(!r.rowCount) throw new NotFoundException('Chapter not found'); return chapterRow(r.rows[0]); }
   async reviewers(){await this.ensureReviewSchema();const r=await query(`SELECT user_id id,email,display_name "displayName" FROM app_user WHERE role='reviewer' AND status='active' ORDER BY display_name`);return r.rows}
-  async assignReviewer(id:string,reviewerId:string,user:any){await this.ensureReviewSchema();const reviewer=await query(`SELECT user_id,display_name,email FROM app_user WHERE user_id=$1 AND role='reviewer' AND status='active'`,[reviewerId]);if(!reviewer.rowCount)throw new UnprocessableEntityException('Select an active reviewer');const r=await query(`UPDATE chapter_library SET reviewer_id=$2,updated_at=now() WHERE chapter_id=$1 RETURNING *`,[id,reviewerId]);if(!r.rowCount)throw new NotFoundException('Chapter not found');await this.audit(id,user,'reviewer_assigned','workflow',`Assigned reviewer ${reviewer.rows[0].display_name}`,{reviewerId});return this.getChapter(id)}
+  async assignReviewer(id:string,reviewerId:string,user:any){
+    await this.ensureReviewSchema();
+    const [reviewer,current]=await Promise.all([
+      query(`SELECT user_id,display_name,email FROM app_user WHERE user_id=$1 AND role='reviewer' AND status='active'`,[reviewerId]),
+      query(`SELECT reviewer_id,status FROM chapter_library WHERE chapter_id=$1`,[id]),
+    ]);
+    if(!current.rowCount)throw new NotFoundException('Chapter not found');
+    if(!reviewer.rowCount)throw new UnprocessableEntityException('Select an active reviewer');
+    const previousReviewerId=current.rows[0].reviewer_id;
+    await query(`UPDATE chapter_library SET reviewer_id=$2,updated_at=now() WHERE chapter_id=$1`,[id,reviewerId]);
+    if(previousReviewerId&&previousReviewerId!==reviewerId)await query(`DELETE FROM chapter_review_item WHERE chapter_id=$1`,[id]);
+    await this.audit(id,user,previousReviewerId&&previousReviewerId!==reviewerId?'reviewer_reassigned':'reviewer_assigned','workflow',`${previousReviewerId&&previousReviewerId!==reviewerId?'Reassigned to':'Assigned'} reviewer ${reviewer.rows[0].display_name}`,{reviewerId,previousReviewerId});
+    return this.getChapter(id);
+  }
+  async revokeReviewer(id:string,user:any){
+    if(user?.role!=='admin')throw new ForbiddenException('Only an Admin can revoke a reviewer');
+    await this.ensureReviewItemsSchema();
+    const current=await query(`SELECT reviewer_id,status FROM chapter_library WHERE chapter_id=$1`,[id]);
+    if(!current.rowCount)throw new NotFoundException('Chapter not found');
+    if(!current.rows[0].reviewer_id)throw new UnprocessableEntityException('This chapter has no assigned reviewer');
+    const returnedToDraft=['in_review','reviewed'].includes(current.rows[0].status);
+    await query(`UPDATE chapter_library SET reviewer_id=NULL,status=CASE WHEN status IN ('in_review','reviewed') THEN 'draft' ELSE status END,submitted_for_review_at=NULL,submitted_by=NULL,updated_at=now() WHERE chapter_id=$1`,[id]);
+    await query(`DELETE FROM chapter_review_item WHERE chapter_id=$1`,[id]);
+    await this.audit(id,user,'reviewer_revoked','workflow',returnedToDraft?'Reviewer revoked; chapter returned to Draft':'Reviewer revoked',{previousReviewerId:current.rows[0].reviewer_id,returnedToDraft});
+    return this.getChapter(id);
+  }
   async submitForReview(id:string,user:any){await this.ensureReviewItemsSchema();const current=await this.getChapter(id);if(!current.reviewer?.id)throw new UnprocessableEntityException('Assign a reviewer before submitting');const r=await query(`UPDATE chapter_library SET status='in_review',submitted_for_review_at=now(),submitted_by=$2,updated_at=now() WHERE chapter_id=$1 RETURNING *`,[id,user.id]);await query(`DELETE FROM chapter_review_item WHERE chapter_id=$1`,[id]);await this.audit(id,user,'submitted_for_review','workflow',`Submitted version ${current.version} for review`,{version:current.version,reviewerId:current.reviewer.id});return chapterRow(r.rows[0])}
   async reviewAudit(id:string,user:any){await this.assertReviewAccess(id,user);await this.ensureReviewSchema();const r=await query(`SELECT a.audit_id id,a.action,a.area,a.summary,a.details,a.created_at "createdAt",u.display_name "actorName",u.role "actorRole" FROM chapter_review_audit a LEFT JOIN app_user u ON u.user_id=a.actor_id WHERE a.chapter_id=$1 ORDER BY a.created_at DESC`,[id]);return r.rows}
   async reviewItems(id:string,user:any){await this.assertReviewAccess(id,user);await this.ensureReviewItemsSchema();const r=await query(`SELECT item_key "itemKey",area,label,approved,comment,decision,updated_at "updatedAt" FROM chapter_review_item WHERE chapter_id=$1 ORDER BY area,label`,[id]);return r.rows}

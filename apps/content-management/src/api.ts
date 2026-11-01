@@ -214,6 +214,7 @@ export const platformApi = {
   chapter: (id:string) => request<LibraryChapter>(`/library/chapters/${id}`),
   reviewers: () => request<Array<{id:string;displayName:string;email:string}>>('/library/reviewers'),
   assignReviewer: (id:string,reviewerId:string) => request<LibraryChapter>(`/library/chapters/${id}/reviewer`,{method:'PUT',body:JSON.stringify({reviewerId})}),
+  revokeReviewer: (id:string) => request<LibraryChapter>(`/library/chapters/${id}/reviewer`,{method:'DELETE'}),
   submitForReview: (id:string) => request<LibraryChapter>(`/library/chapters/${id}/submit-review`,{method:'POST'}),
   reviewAudit: (id:string) => request<any[]>(`/library/chapters/${id}/review-audit`),
   reviewItems: (id:string) => request<any[]>(`/library/chapters/${id}/review-items`),

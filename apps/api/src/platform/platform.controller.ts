@@ -36,6 +36,7 @@ export class PlatformController {
   @Put('library/chapters/:id/cycle-test') updateCycleTest(@Req() req:any,@Param('id') id:string,@Body() body:any){return this.platform.updateCycleTest(id,body,req.user)}
   @Delete('library/chapters/:id/cycle-test/forms') deleteCycleTestForms(@Param('id') id:string){return this.platform.deleteCycleTestForms(id)}
   @Put('library/chapters/:id/reviewer') assignReviewer(@Req() req:any,@Param('id') id:string,@Body() body:any){return this.platform.assignReviewer(id,String(body.reviewerId||''),req.user)}
+  @Delete('library/chapters/:id/reviewer') revokeReviewer(@Req() req:any,@Param('id') id:string){return this.platform.revokeReviewer(id,req.user)}
   @Post('library/chapters/:id/submit-review') submitForReview(@Req() req:any,@Param('id') id:string){return this.platform.submitForReview(id,req.user)}
   @Get('library/chapters/:id/review-audit') reviewAudit(@Req() req:any,@Param('id') id:string){return this.platform.reviewAudit(id,req.user)}
   @Get('library/chapters/:id/review-items') reviewItems(@Req() req:any,@Param('id') id:string){return this.platform.reviewItems(id,req.user)}
