@@ -26,15 +26,15 @@ export function secureCompetencyHtml(source:string):CompetencyHtmlDocument{
     exclusiveFilter:frame=>frame.tag==='a'&&Boolean(frame.attribs?.href&&!frame.attribs.href.startsWith('#')),
     transformTags:{img:(tagName,attribs)=>({tagName,attribs:{...attribs,loading:'lazy'}})}
   });
-  const articlePatternIds=[...clean.matchAll(/<article\b[^>]*>/gi)].flatMap(match=>{
+  const containerPatternIds=[...clean.matchAll(/<(?:article|section|main|div)\b[^>]*>/gi)].flatMap(match=>{
     const tag=match[0],className=tag.match(/\bclass=["']([^"']*)["']/i)?.[1]||'',id=tag.match(/\bid=["']([^"']+)["']/i)?.[1];
     return /(?:^|\s)pattern-page(?:\s|$)/.test(className)&&id?[id]:[];
   });
   const patternIds=[...new Set([
-    ...articlePatternIds,
+    ...containerPatternIds,
     ...[...clean.matchAll(/\bdata-pattern-id=["']([^"']+)["']/gi)].map(match=>match[1])
   ])];
-  if(!patternIds.length)throw new Error('No competency pattern sections were found. Add article.pattern-page elements with stable id values.');
+  if(!patternIds.length)throw new Error('No competency pattern sections were found. Add a stable id and the pattern-page class to each article, section, main, or div pattern container.');
   const csp=`default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; script-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'`;
   const withoutMeta=clean.replace(/<meta\b[^>]*http-equiv=["']Content-Security-Policy["'][^>]*>/gi,'');
   const html=/<html\b/i.test(withoutMeta)?withoutMeta.replace(/<head([^>]*)>/i,`<head$1><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}">`):`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${csp}"></head><body>${withoutMeta}</body></html>`;

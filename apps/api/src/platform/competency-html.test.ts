@@ -14,6 +14,10 @@ describe('secureCompetencyHtml',()=>{
     const result=secureCompetencyHtml('<article class="pattern-page" id="RN-01"><button type="button">Next</button><script>window.parent.postMessage("token", "*")</script></article>');
     expect(result.html).toContain('<button type="button">Next</button>');expect(result.html).not.toContain('<script');expect(result.warnings).toContain('Scripted behaviour was removed; safe native HTML interactions remain available.');
   });
+  it('recognizes section, main and div pattern-page containers',()=>{
+    const result=secureCompetencyHtml('<section class="pattern-page" id="S-01"></section><main id="M-02" class="lesson pattern-page"></main><div data-pattern-id="D-03"></div>');
+    expect(result.patternIds).toEqual(['S-01','M-02','D-03']);
+  });
   it.each([
     '<article class="pattern-page" id="P"><img src="https://bad.example/x.png"></article>',
     '<article class="pattern-page" id="P"><p onclick="x()">x</p></article>'

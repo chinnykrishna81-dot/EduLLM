@@ -57,7 +57,7 @@ function fullPatternHtml(pattern: any) {
 function patternArticles(html: string) {
   if (!html.trim()) return new Map<string, string>();
   const doc = new DOMParser().parseFromString(html, "text/html");
-  return new Map(Array.from(doc.querySelectorAll<HTMLElement>("article.pattern-page[id]")).map((article) => { article.classList.add("edullm-competency-pattern"); return [article.id, article.outerHTML]; }));
+  return new Map(Array.from(doc.querySelectorAll<HTMLElement>("article.pattern-page[id],section.pattern-page[id],main.pattern-page[id],div.pattern-page[id]")).map((article) => { article.classList.add("edullm-competency-pattern"); return [article.id, article.outerHTML]; }));
 }
 
 function initTopics(chapter: LibraryChapter): Topic[] {
