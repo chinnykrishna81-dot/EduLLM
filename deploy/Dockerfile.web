@@ -6,13 +6,15 @@ COPY apps/api/package.json apps/api/package.json
 COPY apps/content-management/package.json apps/content-management/package.json
 COPY apps/unified-learning/package.json apps/unified-learning/package.json
 COPY packages/content-schema/package.json packages/content-schema/package.json
+COPY packages/competency-renderer/package.json packages/competency-renderer/package.json
 RUN npm ci
 
 COPY apps/content-management apps/content-management
 COPY apps/unified-learning apps/unified-learning
 COPY apps/competency-patterns.css apps/competency-patterns.css
 COPY packages/content-schema packages/content-schema
-RUN npm run build -w @edullm/content-schema && \
+COPY packages/competency-renderer packages/competency-renderer
+RUN npm run build -w @edullm/content-schema && npm run build -w @edullm/competency-renderer && \
     VITE_API_ORIGIN='' VITE_BASE_PATH='/admin/' npm run build -w @edullm/content-management && \
     VITE_API_BASE='/api' VITE_API_ORIGIN='' npm run build -w @edullm/unified-learning
 

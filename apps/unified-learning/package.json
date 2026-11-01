@@ -13,6 +13,7 @@
     "@capacitor/android": "^8.5.3",
     "@capacitor/core": "^8.5.3",
     "@edullm/content-schema": "*",
+    "@edullm/competency-renderer": "*",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

@@ -6,6 +6,8 @@ import './navigation-cleanup.css';
 import {shuffleForStudent} from './studentShuffle';
 import {CycleTestExperience} from './CycleTestExperience';
 import {FormattedText} from './FormattedText';
+import {CompetencyPatternPage} from '@edullm/competency-renderer';
+import '@edullm/competency-renderer/styles.css';
 
 const API=import.meta.env.VITE_API_ORIGIN ?? 'http://localhost:3001';
 function CompetencyHtmlFrame({asset,sectionId,title}:{asset:any;sectionId:string;title:string}){const escaped=String(sectionId).replace(/\\/g,'\\\\').replace(/"/g,'\\"'),visibility=`<style>article.pattern-page,article.pattern{display:none!important}article.pattern-page[id="${escaped}"],article.pattern[id="${escaped}"],[data-pattern-id="${escaped}"]{display:block!important}aside,.hero,footer{display:none!important}.shell{display:block!important;padding:0!important}main{display:block!important}html,body{margin:0!important;max-width:100%!important}</style>`,srcDoc=String(asset?.html||'').replace(/<\/head>/i,`${visibility}</head>`);return <iframe className="competency-html-frame" sandbox="" referrerPolicy="no-referrer" srcDoc={srcDoc} title={`${title} interactive competency page`}/>}
@@ -155,6 +157,7 @@ export function ChapterLearning({subject,chapter,back,externalPractice,previewMo
             {page.subtopicDescription&&position===0&&<RichContent className="subtopic-lead" value={page.subtopicDescription}/>}
             {page.title!==primaryTitle&&<h2 className="page-title">{page.title}</h2>}
             <RichContent className="topic-lead" value={page.description}/>
+            {page.competencyContent&&<CompetencyPatternPage content={page.competencyContent} title={primaryTitle} patternId={page.subtopicId}/>}
             {page.htmlPresentation&&chapter.content?.competencyHtmlPresentations?.find((asset:any)=>asset.id===page.htmlPresentation.assetId)?<CompetencyHtmlFrame asset={chapter.content.competencyHtmlPresentations.find((asset:any)=>asset.id===page.htmlPresentation.assetId)} sectionId={page.htmlPresentation.sectionId} title={primaryTitle}/>:page.document?<PdfLearningPage document={page.document}/>:page.blocks?.length?<PageBlocks blocks={page.blocks} mediaFor={mediaFor}/>:page.concepts.map((c:any)=><ConceptPage concept={c} mediaFor={mediaFor} legacyPractice={!effectiveCp&&!page.knowledgeCheck} hideTitle={sameHeading(c.title,primaryTitle)||sameHeading(c.title,page.title)} key={c.id}/>)}
           </article>
           {topicEnds&&page.knowledgeCheck&&cykRev&&<TopicKnowledgeCheck check={page.knowledgeCheck} topicId={page.topicId} mediaFor={mediaFor} node={()=>{}} status={state=>setCykStatus(c=>({...c,[page.topicId]:state}))}/>}

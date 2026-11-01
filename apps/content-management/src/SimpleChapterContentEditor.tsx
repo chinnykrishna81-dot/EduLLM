@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { platformApi, type LibraryChapter } from "./api";
 import { browserId } from "./browserId";
 import { importEducationalContent, renderEducationalSubtopic } from "@edullm/content-schema";
+import {CompetencyPatternPage} from "@edullm/competency-renderer";
+import "@edullm/competency-renderer/styles.css";
 import "./simple-chapter-editor.css";
 import "../../competency-patterns.css";
 
@@ -442,7 +444,7 @@ export function SimpleChapterContentEditor({
   };
 
   const importCompetencyPatterns = async () => {
-    if (!contentImportFiles.length) { setMsg("Select a competency-pattern JSON or HTML file first."); return; }
+    if (!contentImportFiles.length) { setMsg("Select a competency-pattern JSON file first."); return; }
     setBusy(true); setMsg("Validating selected competency files…");
     let completed = false;
     try {
@@ -474,7 +476,7 @@ export function SimpleChapterContentEditor({
         const html = renderEducationalSubtopic(subtopic, uploadedUrl);
         const suppliedHtml=articles.get(subtopic.id);
         if(suppliedHtml){const text=(value:string)=>new DOMParser().parseFromString(value,"text/html").body.textContent?.replace(/\s+/g," ").trim();if(text(suppliedHtml)!==text(html))canonical.issues.push({severity:"warning",topicId:canonicalTopic.id,subtopicId:subtopic.id,path:"printableHtml",message:"Supplied printable HTML differs from canonical JSON output; JSON was retained as the source of truth."});}
-        return { id: subtopic.id, title: subtopic.title, html, source: { syllabusCode: subtopic.id, educationalImport: true, sourceContent: subtopic.content } };
+        return { id: subtopic.id, title: subtopic.title, html, source: { syllabusCode: subtopic.id, educationalImport: true, competencyContent: subtopic.content } };
       }) };
       const existingIndex = topics.findIndex((item) => item.id === imported.id);
       if (existingIndex >= 0 && !window.confirm(`Replace the existing “${imported.title}” topic?`)) return;
@@ -658,19 +660,19 @@ export function SimpleChapterContentEditor({
           <section className="sce-import-box">
             <strong>Import competency content</strong>
             <label>
-              <span>1. JSON and HTML</span>
-              <input ref={contentImportInput} type="file" accept=".json,.html,.htm,text/html" multiple onChange={(event) => setContentImportFiles(Array.from(event.target.files || []))} />
-              <small>{contentImportFiles.length ? contentImportFiles.map((file) => file.name).join(", ") : "JSON, HTML, or both together"}</small>
+              <span>1. Structured competency JSON</span>
+              <input ref={contentImportInput} type="file" accept=".json,application/json" onChange={(event) => setContentImportFiles(Array.from(event.target.files || []))} />
+              <small>{contentImportFiles.length ? contentImportFiles.map((file) => file.name).join(", ") : "Self-contained competency JSON"}</small>
             </label>
             <label>
               <span>2. Referenced images (optional)</span>
               <input ref={imageImportInput} type="file" accept="image/*,.svg" multiple onChange={(event) => setImageImportFiles(Array.from(event.target.files || []))} />
               <small>{imageImportFiles.length ? `${imageImportFiles.length} image(s) selected` : "Select all referenced image files"}</small>
             </label>
-            <button className="sce-import-patterns" disabled={busy || !contentImportFiles.some((file) => /\.(json|html?)$/i.test(file.name))} onClick={importCompetencyPatterns}>
+            <button className="sce-import-patterns" disabled={busy || !contentImportFiles.some((file) => /\.json$/i.test(file.name))} onClick={importCompetencyPatterns}>
               {busy ? "Processing…" : "Process competency files"}
             </button>
-            <p className="sce-import-help">JSON remains the structured source for metadata and analytics. HTML becomes the isolated visual presentation. HTML-only uploads attach to the selected Topic.</p>
+            <p className="sce-import-help">JSON is the authoritative content source. Preview uses the same safe React components students see; standalone HTML is no longer required. Existing HTML-backed content remains unchanged.</p>
             {selectedHtmlAsset&&<div className="sce-html-asset"><small>HTML presentation: {selectedHtmlAsset.fileName}</small><button disabled={busy} onClick={async()=>{if(!window.confirm('Delete this HTML presentation and return to JSON rendering?'))return;setBusy(true);try{const updated=await platformApi.deleteCompetencyHtml(chapter.id,selectedHtmlAsset.id);setTopics(initTopics(updated));setHtmlAssets(updated.content?.competencyHtmlPresentations||[]);setMsg('HTML presentation deleted. Structured JSON content remains available.')}catch(error:any){setMsg(error.message)}finally{setBusy(false)}}}>Delete HTML</button></div>}
           </section>
         </aside>
@@ -715,7 +717,7 @@ export function SimpleChapterContentEditor({
                   />
                 </>
               ) : (
-                node.source?.htmlPresentation&&htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId)?<iframe className="sce-html-preview" sandbox="" referrerPolicy="no-referrer" srcDoc={competencyFrameDocument(htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId),node.source.htmlPresentation.sectionId)} title={`${node.title} HTML presentation`}/>:<div className="sce-preview" dangerouslySetInnerHTML={{__html:node.html||'<p style="color:#9ca3af">Nothing to preview yet.</p>'}}/>
+                node.source?.competencyContent?<CompetencyPatternPage content={node.source.competencyContent} title={node.title} patternId={node.id}/>:node.source?.htmlPresentation&&htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId)?<iframe className="sce-html-preview" sandbox="" referrerPolicy="no-referrer" srcDoc={competencyFrameDocument(htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId),node.source.htmlPresentation.sectionId)} title={`${node.title} HTML presentation`}/>:<div className="sce-preview" dangerouslySetInnerHTML={{__html:node.html||'<p style="color:#9ca3af">Nothing to preview yet.</p>'}}/>
               )}
             </>
           )}

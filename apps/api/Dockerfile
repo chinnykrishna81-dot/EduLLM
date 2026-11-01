@@ -6,6 +6,7 @@ COPY apps/api/package.json apps/api/package.json
 COPY apps/content-management/package.json apps/content-management/package.json
 COPY apps/unified-learning/package.json apps/unified-learning/package.json
 COPY packages/content-schema/package.json packages/content-schema/package.json
+COPY packages/competency-renderer/package.json packages/competency-renderer/package.json
 RUN npm ci
 
 COPY apps/api apps/api

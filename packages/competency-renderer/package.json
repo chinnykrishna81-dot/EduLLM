@@ -1,0 +1,11 @@
+{
+  "name": "@edullm/competency-renderer",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": { ".": "./dist/index.js", "./styles.css": "./src/styles.css" },
+  "scripts": { "build": "tsc -p tsconfig.json", "test": "vitest run" },
+  "peerDependencies": { "react": "^19.1.1" },
+  "devDependencies": { "@types/react": "^19.1.12", "react": "^19.1.1", "react-dom": "^19.1.1", "@types/react-dom": "^19.1.9", "typescript": "^5.9.2", "vitest": "^3.2.4" }
+}

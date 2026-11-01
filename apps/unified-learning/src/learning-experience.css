@@ -85,3 +85,4 @@
 .tree-summary.mastery-yellow>span{color:#a66a00}
 .tree-summary.mastery-orange>span{color:#c65300}
 .competency-html-frame{display:block;width:100%;height:clamp(640px,78vh,1100px);border:0;border-radius:10px;background:#fff}.topic-webpage:has(.competency-html-frame){padding:0;overflow:hidden}@media(max-width:700px){.competency-html-frame{height:75vh;min-height:560px}}
+.topic-webpage:has(.cpr-page)>.competency-html-frame,.topic-webpage:has(.cpr-page)>.learning-page-blocks{display:none}.topic-webpage:has(.cpr-page){padding:0;overflow:visible}.topic-webpage:has(.cpr-page)>.learning-page-primary-title{display:none}

@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@edullm/content-schema": "*",
+    "@edullm/competency-renderer": "*",
     "mammoth": "^1.13.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
