@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { platformApi, type LibraryChapter } from "./api";
+import { API, platformApi, type LibraryChapter } from "./api";
 import { browserId } from "./browserId";
 import { importEducationalContent } from "@edullm/content-schema";
 import {CompetencyPatternPage} from "@edullm/competency-renderer";
@@ -273,6 +273,8 @@ export function SimpleChapterContentEditor({
   const imageImportInput = useRef<HTMLInputElement>(null);
   const [contentImportFiles, setContentImportFiles] = useState<File[]>([]);
   const [imageImportFiles, setImageImportFiles] = useState<File[]>([]);
+  const [competencyPdf,setCompetencyPdf]=useState<File>();
+  const [competencyPdfMap,setCompetencyPdfMap]=useState<File>();
   const [htmlAssets,setHtmlAssets]=useState<any[]>(()=>chapter.content?.competencyHtmlPresentations||[]);
   const [draggedTopicId,setDraggedTopicId]=useState<string>();
   const [dropTopicId,setDropTopicId]=useState<string>();
@@ -283,6 +285,11 @@ export function SimpleChapterContentEditor({
         ? topic
         : topic?.subtopics[selection.subtopicIndex];
   const selectedHtmlAsset=htmlAssets.find(asset=>asset.topicId===topic?.id);
+  const importCompetencyPdf=async()=>{
+    if(!competencyPdf||!competencyPdfMap)return;
+    setBusy(true);setMsg("Uploading and validating the PDF presentation…");
+    try{const result=await platformApi.uploadCompetencyPdf(chapter.id,competencyPdf,competencyPdfMap);setTopics(initTopics(result.chapter));setCompetencyPdf(undefined);setCompetencyPdfMap(undefined);setMsg(`PDF presentation imported: ${result.topicsCreated} new topic(s), ${result.subtopicsCreated} new subtopic(s). Matching IDs were updated without changing existing questions or content.`)}catch(error:any){setMsg(`PDF import failed: ${error?.message||"Unknown error"}`)}finally{setBusy(false)}
+  };
   const updateNode = (changes: Partial<Topic> | Partial<Subtopic>) =>
     setTopics((current) =>
       current.map((item, index) => {
@@ -673,6 +680,12 @@ export function SimpleChapterContentEditor({
               {busy ? "Processing…" : "Process competency files"}
             </button>
             <p className="sce-import-help">JSON is the authoritative content source. Preview uses the same safe React components students see; standalone HTML is no longer required. Existing HTML-backed content remains unchanged.</p>
+            <hr />
+            <strong>Import PDF presentation</strong>
+            <label><span>1. Educational PDF</span><input type="file" accept=".pdf,application/pdf" onChange={event=>setCompetencyPdf(event.target.files?.[0])}/><small>{competencyPdf?.name||"PDF with embedded images, fonts and searchable marker tags (20 MB maximum)"}</small></label>
+            <label><span>2. PDF mapping JSON</span><input type="file" accept=".json,application/json" onChange={event=>setCompetencyPdfMap(event.target.files?.[0])}/><small>{competencyPdfMap?.name||"Multiple topics and their nested subtopic page ranges"}</small></label>
+            <button className="sce-import-patterns" disabled={busy||!competencyPdf||!competencyPdfMap} onClick={importCompetencyPdf}>{busy?"Processing…":"Process PDF and mapping"}</button>
+            <p className="sce-import-help">Uses stable topic/subtopic IDs to append or update PDF presentation only. Existing JSON, HTML, questions, practice and cycle tests are preserved.</p>
             {selectedHtmlAsset&&<div className="sce-html-asset"><small>HTML presentation: {selectedHtmlAsset.fileName}</small><button disabled={busy} onClick={async()=>{if(!window.confirm('Delete this HTML presentation and return to JSON rendering?'))return;setBusy(true);try{const updated=await platformApi.deleteCompetencyHtml(chapter.id,selectedHtmlAsset.id);setTopics(initTopics(updated));setHtmlAssets(updated.content?.competencyHtmlPresentations||[]);setMsg('HTML presentation deleted. Structured JSON content remains available.')}catch(error:any){setMsg(error.message)}finally{setBusy(false)}}}>Delete HTML</button></div>}
           </section>
         </aside>
@@ -717,7 +730,7 @@ export function SimpleChapterContentEditor({
                   />
                 </>
               ) : (
-                node.source?.competencyContent?<CompetencyPatternPage content={node.source.competencyContent} title={node.title} patternId={node.id}/>:node.source?.htmlPresentation&&htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId)?<iframe className="sce-html-preview" sandbox="" referrerPolicy="no-referrer" srcDoc={competencyFrameDocument(htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId),node.source.htmlPresentation.sectionId)} title={`${node.title} HTML presentation`}/>:<div className="sce-preview" dangerouslySetInnerHTML={{__html:node.html||'<p style="color:#9ca3af">Nothing to preview yet.</p>'}}/>
+                node.source?.presentationMode==='pdf'&&node.source?.document?<iframe className="sce-html-preview" title={`${node.title} PDF presentation`} src={`${API}${node.source.document.url}#page=${node.source.document.startPage||1}&toolbar=0&navpanes=0`}/>:node.source?.competencyContent?<CompetencyPatternPage content={node.source.competencyContent} title={node.title} patternId={node.id}/>:node.source?.htmlPresentation&&htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId)?<iframe className="sce-html-preview" sandbox="" referrerPolicy="no-referrer" srcDoc={competencyFrameDocument(htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId),node.source.htmlPresentation.sectionId)} title={`${node.title} HTML presentation`}/>:<div className="sce-preview" dangerouslySetInnerHTML={{__html:node.html||'<p style="color:#9ca3af">Nothing to preview yet.</p>'}}/>
               )}
             </>
           )}

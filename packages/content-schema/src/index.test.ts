@@ -42,4 +42,12 @@ describe('structured chapter packages',()=>{
     expect(result.success).toBe(true);
     expect(chapterLearningPages(existing.content).length).toBe(existing.content.topics.length);
   });
+  it('renders only the mapped PDF page range for each subtopic',()=>{
+    const document={id:'pdf-1',fileName:'patterns.pdf',url:'/media/patterns.pdf',byteSize:1024,pageCount:12,startPage:4,endPage:6,uploadedAt:'2026-11-01T00:00:00.000Z',readOnly:true as const};
+    const content={id:'chapter-pdf',title:'PDF chapter',topics:[{id:'topic-1',title:'Competency Patterns',sequence:1,subtopics:[{id:'pattern-1',title:'Pattern 1',sequence:1,document}]}]};
+    expect(ChapterSchema.safeParse(content).success).toBe(true);
+    const pages=chapterLearningPages(content);
+    expect(pages.map((page:any)=>page.document?.pageNumber)).toEqual([4,5,6]);
+    expect(pages.every(page=>page.subtopicId==='pattern-1')).toBe(true);
+  });
 });

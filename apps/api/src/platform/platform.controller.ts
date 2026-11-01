@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Put, Query, Req, Res, UploadedFile, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -31,6 +31,7 @@ export class PlatformController {
   @Put('library/chapters/:id') updateChapter(@Req() req:any,@Param('id') id:string,@Body() body:any){return this.platform.updateChapter(id,body,req.user)}
   @Post('library/chapters/:id/topics') importTopics(@Param('id') id:string,@Body() body:any){return this.platform.importTopics(id,body)}
   @Post('library/chapters/:id/competency-html') @UseInterceptors(FileInterceptor('file',{storage:diskStorage({destination:chapterStorage,filename:(_req,_file,cb)=>cb(null,`${randomUUID()}.html`)}),limits:{fileSize:5*1024*1024},fileFilter:(_req,file,cb)=>cb(null,['.html','.htm'].includes(extname(file.originalname).toLowerCase()))})) uploadCompetencyHtml(@Req() req:any,@Param('id') id:string,@Body() body:any,@UploadedFile() file:Express.Multer.File){return this.platform.uploadCompetencyHtml(id,String(body.topicId||''),file,req.user)}
+  @Post('library/chapters/:id/competency-pdf') @UseInterceptors(FileFieldsInterceptor([{name:'pdf',maxCount:1},{name:'mapping',maxCount:1}],{storage:diskStorage({destination:chapterStorage,filename:(_req,file,cb)=>cb(null,`${randomUUID()}${extname(file.originalname).toLowerCase()}`)}),limits:{fileSize:20*1024*1024},fileFilter:(_req,file,cb)=>cb(null,(file.fieldname==='pdf'&&extname(file.originalname).toLowerCase()==='.pdf')||(file.fieldname==='mapping'&&extname(file.originalname).toLowerCase()==='.json'))})) uploadCompetencyPdf(@Req() req:any,@Param('id') id:string,@UploadedFiles() files:{pdf?:Express.Multer.File[];mapping?:Express.Multer.File[]}){return this.platform.uploadCompetencyPdf(id,files?.pdf?.[0],files?.mapping?.[0],req.user)}
   @Delete('library/chapters/:id/competency-html/:assetId') deleteCompetencyHtml(@Req() req:any,@Param('id') id:string,@Param('assetId') assetId:string){return this.platform.deleteCompetencyHtml(id,assetId,req.user)}
   @Delete('library/chapters/:id') deleteChapter(@Param('id') id:string){return this.platform.deleteChapter(id)}
   @Put('library/chapters/:id/cycle-test') updateCycleTest(@Req() req:any,@Param('id') id:string,@Body() body:any){return this.platform.updateCycleTest(id,body,req.user)}

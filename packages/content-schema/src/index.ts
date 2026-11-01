@@ -64,8 +64,9 @@ export const ConceptSchema = z.object({
 });
 const sequence = z.number().int().positive();
 export const PdfDocumentSchema = z.object({
-  id, fileName: z.string().min(1), url: z.string().min(1), byteSize: z.number().int().positive().max(5*1024*1024),
-  pageCount: z.number().int().positive(), uploadedAt: z.string().min(1), readOnly: z.literal(true).default(true)
+  id, fileName: z.string().min(1), url: z.string().min(1), byteSize: z.number().int().positive().max(20*1024*1024),
+  pageCount: z.number().int().positive(), startPage:z.number().int().positive().optional(), endPage:z.number().int().positive().optional(),
+  uploadedAt: z.string().min(1), readOnly: z.literal(true).default(true)
 });
 export const KnowledgeCheckSchema = z.object({
   title: z.string().min(1).default('Check Your Understanding'), instructions: text,
@@ -90,7 +91,8 @@ export const LearningPageSchema = z.object({
 export const SubtopicSchema = z.object({
   id, title: z.string().min(1), description: text, syllabusCode: text, sequence, mediaRefs,
   pages: z.array(LearningPageSchema).default([]), document: PdfDocumentSchema.optional(), knowledgeCheck: KnowledgeCheckSchema.optional(),
-  htmlPresentation:z.object({assetId:id,sectionId:z.string().min(1)}).optional(), competencyContent:z.record(z.string(),z.unknown()).optional()
+  htmlPresentation:z.object({assetId:id,sectionId:z.string().min(1)}).optional(), competencyContent:z.record(z.string(),z.unknown()).optional(),
+  presentationMode:z.enum(['structured','html','pdf']).optional()
 });
 export const StructuredTopicSchema = z.object({
   id, title: z.string().min(1), description: text, syllabusCode: text, sequence, mediaRefs,
@@ -181,7 +183,7 @@ export type MediaAsset = { id: string; courseId: string; fileName: string; store
 export type LearningPageView = {
   id:string; title:string; description:string; sequence:number; pageType:'introduction'|'learning'|'worked_example'|'recap';
   continueRequired:boolean; mediaRefs:string[]; blocks:z.infer<typeof LearningPageBlockSchema>[]; concepts:Concept[]; topicId:string; topicTitle:string;
-  topicDescription?:string; subtopicId:string; subtopicTitle:string; subtopicDescription?:string; syllabusCode:string; knowledgeCheck?:z.infer<typeof KnowledgeCheckSchema>;htmlPresentation?:{assetId:string;sectionId:string};
+  topicDescription?:string; subtopicId:string; subtopicTitle:string; subtopicDescription?:string; syllabusCode:string; knowledgeCheck?:z.infer<typeof KnowledgeCheckSchema>;htmlPresentation?:{assetId:string;sectionId:string};presentationMode?:'structured'|'html'|'pdf';
 };
 
 export function isStructuredTopic(topic:any):boolean{return Array.isArray(topic?.subtopics)}
@@ -189,9 +191,9 @@ export function chapterLearningPages(chapter:any):LearningPageView[]{
   let fallbackSequence=0;
   return (chapter?.topics||[]).flatMap((topic:any)=>{
     if(!isStructuredTopic(topic))return [{...topic,sequence:++fallbackSequence,pageType:topic.syllabusCode==='INTRO'?'introduction':'learning',continueRequired:true,topicId:topic.parentTopicId||topic.id,topicTitle:topic.parentTopicTitle||topic.title,subtopicId:topic.id,subtopicTitle:topic.title,knowledgeCheck:undefined}];
-    const documentPages=(document:any,subtopicId:string,subtopicTitle:string,syllabusCode:string)=>document?Array.from({length:document.pageCount},(_,index)=>({id:`${document.id}:page:${index+1}`,title:`${subtopicTitle} — Page ${index+1}`,description:'Read-only PDF learning page',sequence:index+1,pageType:'learning',continueRequired:true,mediaRefs:[],concepts:[],document:{...document,pageNumber:index+1},topicId:topic.id,topicTitle:topic.title,subtopicId,subtopicTitle,syllabusCode,knowledgeCheck:undefined})):[];
+    const documentPages=(document:any,subtopicId:string,subtopicTitle:string,syllabusCode:string)=>{if(!document)return[];const start=document.startPage||1,end=document.endPage||document.pageCount;return Array.from({length:end-start+1},(_,index)=>{const pageNumber=start+index;return{id:`${document.id}:${subtopicId}:page:${pageNumber}`,title:`${subtopicTitle} — Page ${pageNumber}`,description:'Read-only PDF learning page',sequence:index+1,pageType:'learning',continueRequired:true,mediaRefs:[],concepts:[],document:{...document,pageNumber},topicId:topic.id,topicTitle:topic.title,subtopicId,subtopicTitle,syllabusCode,knowledgeCheck:undefined}})};
     const introductions=topic.document?documentPages(topic.document,`${topic.id}:document`,topic.title,'INTRO').map((page:any)=>({...page,topicDescription:topic.description||''})):(topic.introductionPages||[]).map((page:any)=>({...page,topicId:topic.id,topicTitle:topic.title,topicDescription:topic.description||'',subtopicId:`${topic.id}:introduction`,subtopicTitle:topic.title,syllabusCode:'INTRO',knowledgeCheck:undefined}));
-    const subtopics=[...(topic.subtopics||[])].sort((a:any,b:any)=>a.sequence-b.sequence).flatMap((subtopic:any)=>subtopic.document?documentPages(subtopic.document,subtopic.id,subtopic.title,subtopic.syllabusCode).map((page:any)=>({...page,topicDescription:topic.description||'',subtopicDescription:subtopic.description||'',htmlPresentation:subtopic.htmlPresentation,competencyContent:subtopic.competencyContent})):[...(subtopic.pages||[])].sort((a:any,b:any)=>a.sequence-b.sequence).map((page:any,index:number)=>({...page,topicId:topic.id,topicTitle:topic.title,topicDescription:topic.description||'',subtopicId:subtopic.id,subtopicTitle:subtopic.title,subtopicDescription:subtopic.description||'',syllabusCode:subtopic.syllabusCode,knowledgeCheck:index===subtopic.pages.length-1?subtopic.knowledgeCheck:undefined,htmlPresentation:subtopic.htmlPresentation,competencyContent:subtopic.competencyContent})));
+    const subtopics=[...(topic.subtopics||[])].sort((a:any,b:any)=>a.sequence-b.sequence).flatMap((subtopic:any)=>subtopic.document?documentPages(subtopic.document,subtopic.id,subtopic.title,subtopic.syllabusCode).map((page:any)=>({...page,topicDescription:topic.description||'',subtopicDescription:subtopic.description||'',htmlPresentation:subtopic.htmlPresentation,competencyContent:subtopic.competencyContent,presentationMode:subtopic.presentationMode})):[...(subtopic.pages||[])].sort((a:any,b:any)=>a.sequence-b.sequence).map((page:any,index:number)=>({...page,topicId:topic.id,topicTitle:topic.title,topicDescription:topic.description||'',subtopicId:subtopic.id,subtopicTitle:subtopic.title,subtopicDescription:subtopic.description||'',syllabusCode:subtopic.syllabusCode,knowledgeCheck:index===subtopic.pages.length-1?subtopic.knowledgeCheck:undefined,htmlPresentation:subtopic.htmlPresentation,competencyContent:subtopic.competencyContent,presentationMode:subtopic.presentationMode})));
     const combined=[...introductions.sort((a:any,b:any)=>a.sequence-b.sequence),...subtopics];
     if(topic.knowledgeCheck&&combined.length)combined[combined.length-1]={...combined[combined.length-1],knowledgeCheck:topic.knowledgeCheck};
     return combined;
