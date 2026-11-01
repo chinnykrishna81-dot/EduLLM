@@ -327,6 +327,17 @@ export function SimpleChapterContentEditor({
     }
   };
 
+  const uploadScrollablePdf=async(file:File)=>{
+    if(!node)return;
+    if(file.size>20*1024*1024){setMsg("The PDF exceeds the 20 MB limit.");return}
+    setBusy(true);setMsg(`Saving the hierarchy and uploading ${file.name}…`);
+    try{
+      await platformApi.updateChapter(chapter.id,{title:chapter.title,description:chapter.description,content:{...buildContent(chapter,topics),competencyHtmlPresentations:htmlAssets}});
+      const result=await platformApi.uploadChapterDocument(chapter.id,selection.subtopicIndex===undefined?'topic':'subtopic',node.id,file,'scroll');
+      setTopics(initTopics(result.chapter));setMsg(`${file.name} uploaded to “${node.title}”. Students will see all ${result.document.pageCount} pages in one scrollable PDF.`);
+    }catch(error:any){setMsg(`PDF upload failed: ${error?.message||"Unknown error"}`)}finally{setBusy(false)}
+  };
+
   const addTopic = () => {
     setTopics((p) => [
       ...p,
@@ -665,6 +676,10 @@ export function SimpleChapterContentEditor({
             + Add Topic
           </button>
           <section className="sce-import-box">
+            <strong>PDF for selected topic/subtopic</strong>
+            <label><span>Upload one scrollable PDF to “{node?.title||"selected item"}”</span><input type="file" accept=".pdf,application/pdf" disabled={busy||!node} onChange={event=>{const file=event.target.files?.[0];if(file)uploadScrollablePdf(file);event.currentTarget.value=""}}/><small>All PDF pages display together in a scrollable viewer · 20 MB maximum · no mapping JSON required</small></label>
+          </section>
+          <section className="sce-import-box">
             <strong>Import competency content</strong>
             <label>
               <span>1. Structured competency JSON</span>
@@ -730,7 +745,7 @@ export function SimpleChapterContentEditor({
                   />
                 </>
               ) : (
-                node.source?.presentationMode==='pdf'&&node.source?.document?<iframe className="sce-html-preview" title={`${node.title} PDF presentation`} src={`${API}${node.source.document.url}#page=${node.source.document.startPage||1}&toolbar=0&navpanes=0`}/>:node.source?.competencyContent?<CompetencyPatternPage content={node.source.competencyContent} title={node.title} patternId={node.id}/>:node.source?.htmlPresentation&&htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId)?<iframe className="sce-html-preview" sandbox="" referrerPolicy="no-referrer" srcDoc={competencyFrameDocument(htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId),node.source.htmlPresentation.sectionId)} title={`${node.title} HTML presentation`}/>:<div className="sce-preview" dangerouslySetInnerHTML={{__html:node.html||'<p style="color:#9ca3af">Nothing to preview yet.</p>'}}/>
+                node.source?.document?<iframe className="sce-html-preview" title={`${node.title} PDF presentation`} src={`${API}${node.source.document.url}#page=${node.source.document.startPage||1}&toolbar=0&navpanes=0`}/>:node.source?.competencyContent?<CompetencyPatternPage content={node.source.competencyContent} title={node.title} patternId={node.id}/>:node.source?.htmlPresentation&&htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId)?<iframe className="sce-html-preview" sandbox="" referrerPolicy="no-referrer" srcDoc={competencyFrameDocument(htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId),node.source.htmlPresentation.sectionId)} title={`${node.title} HTML presentation`}/>:<div className="sce-preview" dangerouslySetInnerHTML={{__html:node.html||'<p style="color:#9ca3af">Nothing to preview yet.</p>'}}/>
               )}
             </>
           )}

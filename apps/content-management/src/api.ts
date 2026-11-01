@@ -248,9 +248,10 @@ export const platformApi = {
   uploadCompetencyHtml: (id:string,topicId:string,file:File) => {const form=new FormData();form.append('file',file);form.append('topicId',topicId);return request<{chapter:LibraryChapter;presentation:any;createdSubtopics:string[]}>(`/library/chapters/${id}/competency-html`,{method:'POST',body:form})},
   uploadCompetencyPdf: (id:string,pdf:File,mapping:File) => {const form=new FormData();form.append('pdf',pdf);form.append('mapping',mapping);return request<{chapter:LibraryChapter;topicsCreated:number;subtopicsCreated:number;warnings:string[]}>(`/library/chapters/${id}/competency-pdf`,{method:'POST',body:form})},
   deleteCompetencyHtml: (id:string,assetId:string) => request<LibraryChapter>(`/library/chapters/${id}/competency-html/${assetId}`,{method:'DELETE'}),
-  uploadChapterDocument: (id: string, nodeType: 'topic' | 'subtopic', nodeId: string, file: File) => {
+  uploadChapterDocument: (id: string, nodeType: 'topic' | 'subtopic', nodeId: string, file: File, displayMode: 'paged' | 'scroll' = 'paged') => {
     const form = new FormData();
     form.append('file', file);
+    form.append('displayMode', displayMode);
     return request<{ document: any; chapter: LibraryChapter }>(`/library/chapters/${id}/documents/${nodeType}/${encodeURIComponent(nodeId)}`, { method: 'POST', body: form });
   },
   uploadChapterResource: (id: string, type: 'smart-notes' | 'knowledge-graph', file: File, mode: 'append' | 'overwrite' = 'overwrite') => {

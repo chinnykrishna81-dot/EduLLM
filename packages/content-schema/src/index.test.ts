@@ -50,4 +50,12 @@ describe('structured chapter packages',()=>{
     expect(pages.map((page:any)=>page.document?.pageNumber)).toEqual([4,5,6]);
     expect(pages.every(page=>page.subtopicId==='pattern-1')).toBe(true);
   });
+  it('renders a scroll-mode PDF as one learning item containing the whole document',()=>{
+    const document={id:'pdf-scroll',fileName:'complete-topic.pdf',url:'/media/complete-topic.pdf',byteSize:2048,pageCount:16,displayMode:'scroll' as const,uploadedAt:'2026-11-01T00:00:00.000Z',readOnly:true as const};
+    const content={id:'chapter-scroll',title:'Scrollable PDF chapter',topics:[{id:'topic-scroll',title:'Manual topic',sequence:1,subtopics:[{id:'subtopic-scroll',title:'Manual subtopic',sequence:1,document}]}]};
+    expect(ChapterSchema.safeParse(content).success).toBe(true);
+    const pages=chapterLearningPages(content);
+    expect(pages).toHaveLength(1);
+    expect((pages[0] as any).document).toMatchObject({id:'pdf-scroll',pageCount:16,displayMode:'scroll',pageNumber:1});
+  });
 });
