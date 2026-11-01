@@ -57,7 +57,13 @@ function fullPatternHtml(pattern: any) {
 function patternArticles(html: string) {
   if (!html.trim()) return new Map<string, string>();
   const doc = new DOMParser().parseFromString(html, "text/html");
-  return new Map(Array.from(doc.querySelectorAll<HTMLElement>("article.pattern-page[id],section.pattern-page[id],main.pattern-page[id],div.pattern-page[id]")).map((article) => { article.classList.add("edullm-competency-pattern"); return [article.id, article.outerHTML]; }));
+  return new Map(Array.from(doc.querySelectorAll<HTMLElement>("article.pattern-page[id],section.pattern-page[id],main.pattern-page[id],div.pattern-page[id],article.pattern[id],section.pattern[id],main.pattern[id],div.pattern[id]")).map((article) => { article.classList.add("edullm-competency-pattern"); return [article.id, article.outerHTML]; }));
+}
+
+function competencyFrameDocument(asset: any, sectionId: string) {
+  const escaped = String(sectionId).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const visibility = `<style>article.pattern-page,article.pattern{display:none!important}article.pattern-page[id="${escaped}"],article.pattern[id="${escaped}"],[data-pattern-id="${escaped}"]{display:block!important}aside,.hero,footer{display:none!important}.shell{display:block!important;padding:0!important}main{display:block!important}html,body{margin:0!important;max-width:100%!important}</style>`;
+  return String(asset?.html || "").replace(/<\/head>/i, `${visibility}</head>`);
 }
 
 function initTopics(chapter: LibraryChapter): Topic[] {
@@ -708,7 +714,7 @@ export function SimpleChapterContentEditor({
                   />
                 </>
               ) : (
-                node.source?.htmlPresentation&&htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId)?<iframe className="sce-html-preview" sandbox="" referrerPolicy="no-referrer" srcDoc={htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId)?.html} title={`${node.title} HTML presentation`}/>:<div className="sce-preview" dangerouslySetInnerHTML={{__html:node.html||'<p style="color:#9ca3af">Nothing to preview yet.</p>'}}/>
+                node.source?.htmlPresentation&&htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId)?<iframe className="sce-html-preview" sandbox="" referrerPolicy="no-referrer" srcDoc={competencyFrameDocument(htmlAssets.find(asset=>asset.id===node.source.htmlPresentation.assetId),node.source.htmlPresentation.sectionId)} title={`${node.title} HTML presentation`}/>:<div className="sce-preview" dangerouslySetInnerHTML={{__html:node.html||'<p style="color:#9ca3af">Nothing to preview yet.</p>'}}/>
               )}
             </>
           )}
