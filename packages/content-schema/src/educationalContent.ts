@@ -6,6 +6,14 @@ export type EducationalImport={topics:CanonicalTopic[];issues:EducationalIssue[]
 const esc=(value:unknown)=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const label=(key:string)=>key.replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
 const scalar=(value:any)=>typeof value==='string'||typeof value==='number'||typeof value==='boolean';
+export function educationalItems(value:any,aliases:string[]=[],itemKeys:string[]=[]):any[]{
+  if(value==null)return [];
+  if(Array.isArray(value))return value;
+  if(typeof value!=='object')return [value];
+  for(const key of aliases)if(value[key]!=null)return educationalItems(value[key],aliases,itemKeys);
+  if(itemKeys.some(key=>value[key]!=null))return[value];
+  const entries=Object.values(value);return entries.length?entries:[value];
+}
 const list=(values:any[])=>`<ul>${values.map(value=>`<li>${scalar(value)?esc(value):renderUnknown(value)}</li>`).join('')}</ul>`;
 const renderUnknown=(value:any):string=>{
   if(value==null)return '';
@@ -46,19 +54,27 @@ export function renderEducationalPrintable(topic:CanonicalTopic,imageUrls:Record
 export function validateEducationalImport(topic:CanonicalTopic):EducationalIssue[]{
   const issues:EducationalIssue[]=[],ids=new Set<string>();
   topic.subtopics.forEach(sub=>{const base=(path:string,message:string,severity:'error'|'warning'='warning')=>issues.push({severity,topicId:topic.id,subtopicId:sub.id,path,message});if(ids.has(sub.id))base('id','Duplicate subtopic identifier','error');ids.add(sub.id);const c=sub.content;
-    for(const key of ['what_is_this_pattern','how_to_use_this_template','three_worked_examples','possible_variations','key_points_to_remember','common_mistakes_and_how_to_avoid','try_yourself_extended'])if(!(key in c))base(key,`Missing educational section ${key}`);
-    (c.three_worked_examples||[]).forEach((x:any,i:number)=>{if(!x.question||!x.step_by_step_solution?.length)base(`three_worked_examples.${i}`,'Worked example is empty or has no solution steps')});
+    const objectSection=(key:string)=>{const value=c[key];if(value==null)base(key,`Missing educational section ${key}`,'error');else if(typeof value!=='object'||Array.isArray(value))base(key,`Expected ${key} to be an object, received ${Array.isArray(value)?'array':typeof value}`,'error')};
+    objectSection('what_is_this_pattern');objectSection('how_to_use_this_template');
+    const examplesValue=c.three_worked_examples??c.worked_examples??c.worked_example,examples=educationalItems(examplesValue,['worked_examples','worked_example','examples','items'],['question','final_answer','step_by_step_solution']);
+    if(examplesValue==null)base('three_worked_examples','Missing worked-example section (three_worked_examples, worked_examples, or worked_example)','error');
+    examples.forEach((example:any,index:number)=>{if(!example||typeof example!=='object')base(`three_worked_examples.${index}`,`Expected a worked-example object, received ${typeof example}`,'error');else{if(!example.question)base(`three_worked_examples.${index}.question`,'Worked example is missing question text');const steps=educationalItems(example.step_by_step_solution??example.steps,['steps','step','items'],['explanation','calculation','instruction']);if(!steps.length)base(`three_worked_examples.${index}.step_by_step_solution`,'Worked example has no solution steps')}});
+    for(const [key,aliases] of [['possible_variations',['variations','variation','items']],['key_points_to_remember',['key_points','points','items']],['common_mistakes_and_how_to_avoid',['mistakes','common_mistake','items']]] as Array<[string,string[]]>){if(c[key]==null)base(key,`Missing educational section ${key}`,'error');else if(!educationalItems(c[key],aliases).length)base(key,`${key} is empty`)}
+    const practice=c.try_yourself_extended??c.try_yourself;if(practice==null)base('try_yourself','Missing educational section try_yourself or try_yourself_extended','error');else if(typeof practice!=='object'||Array.isArray(practice))base('try_yourself',`Expected try_yourself to be an object, received ${Array.isArray(practice)?'array':typeof practice}`,'error');
     if(c.how_to_use_this_template&&!c.how_to_use_this_template.essential_formula)base('how_to_use_this_template.essential_formula','Formula content is missing');
-    const texts=(c.what_is_this_pattern?.recognition_explained||[]).map((x:any)=>x.student_action).filter(Boolean);if(texts.length>1&&new Set(texts).size===1)base('what_is_this_pattern.recognition_explained','Repeated identical “What to do” text across recognition rows');
+    const texts=educationalItems(c.what_is_this_pattern?.recognition_explained,['rows','items'],['student_action']).map((item:any)=>item?.student_action).filter(Boolean);if(texts.length>1&&new Set(texts).size===1)base('what_is_this_pattern.recognition_explained','Repeated identical “What to do” text across recognition rows');
     if(c.diagram?.file_name&&!c.diagram?.data_uri)base('diagram.file_name',`Image reference ${c.diagram.file_name} needs a matching upload`);
   });return issues;
 }
 
 export function importEducationalContent(input:any):EducationalImport{
-  const issues:EducationalIssue[]=[],patterns=new Map((input.patterns||[]).map((item:any)=>[String(item.pattern_id||item.subtopic_id),item]));
-  const topicMeta=input.topic||{},blocks=input.content_blocks||[];let subtopics:CanonicalSubtopic[]=[];
+  const issues:EducationalIssue[]=[];if(!input||typeof input!=='object'||Array.isArray(input))return{topics:[],issues:[{severity:'error',topicId:'',subtopicId:'',path:'$',message:`Expected the JSON root to be an object, received ${Array.isArray(input)?'array':typeof input}`}]};
+  const rawPatterns=input.patterns??input.subtopics??[];if(!Array.isArray(rawPatterns))issues.push({severity:'error',topicId:'',subtopicId:'',path:'patterns',message:`Expected patterns to be an array, received ${Array.isArray(rawPatterns)?'array':typeof rawPatterns}`});
+  const rawBlocks=input.content_blocks??[];if(!Array.isArray(rawBlocks))issues.push({severity:'error',topicId:'',subtopicId:'',path:'content_blocks',message:`Expected content_blocks to be an array, received ${Array.isArray(rawBlocks)?'array':typeof rawBlocks}`});
+  const patternArray=Array.isArray(rawPatterns)?rawPatterns:[],blocks=Array.isArray(rawBlocks)?rawBlocks:[],patterns=new Map(patternArray.filter((item:any)=>item&&typeof item==='object'&&!Array.isArray(item)).map((item:any)=>[String(item.pattern_id||item.subtopic_id),item]));
+  const topicMeta=input.topic||{};let subtopics:CanonicalSubtopic[]=[];
   const contentBlocks=blocks.filter((block:any)=>block.type==='SUBTOPIC_CONTENT');
   if(contentBlocks.length)subtopics=contentBlocks.map((block:any)=>{const source:any=block.content||patterns.get(String(block.pattern_id||block.subtopic_id))||{},content={...source,start_subtopic_marker:source.start_subtopic_marker??block.start_subtopic_marker,end_subtopic_marker:source.end_subtopic_marker??block.end_subtopic_marker,_content_block:Object.fromEntries(Object.entries(block).filter(([key])=>key!=='content'))};return{id:String(block.subtopic_id||source.subtopic_id||source.pattern_id),title:String(source.subtopic_name||source.pattern_title||block.subtopic_name||'Untitled subtopic'),content,source:block}});
-  else subtopics=(input.subtopics||input.patterns||[]).map((source:any)=>({id:String(source.subtopic_id||source.pattern_id||source.id),title:String(source.subtopic_name||source.pattern_title||source.title||'Untitled subtopic'),content:source.content||source,source}));
+  else subtopics=patternArray.filter((source:any)=>source&&typeof source==='object'&&!Array.isArray(source)).map((source:any)=>({id:String(source.subtopic_id||source.pattern_id||source.id),title:String(source.subtopic_name||source.pattern_title||source.title||'Untitled subtopic'),content:source.content||source,source}));
   const topic={id:String(topicMeta.topic_id||input.topic_id||input.id||'imported-topic'),title:String(topicMeta.topic_name||input.topic_name||input.title||'Imported Content'),subtopics};issues.push(...validateEducationalImport(topic));return{topics:[topic],issues};
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { platformApi, type LibraryChapter } from "./api";
 import { browserId } from "./browserId";
-import { importEducationalContent, renderEducationalSubtopic } from "@edullm/content-schema";
+import { importEducationalContent } from "@edullm/content-schema";
 import {CompetencyPatternPage} from "@edullm/competency-renderer";
 import "@edullm/competency-renderer/styles.css";
 import "./simple-chapter-editor.css";
@@ -465,15 +465,15 @@ export function SimpleChapterContentEditor({
       let data:any;
       try{data=JSON.parse(await jsonFile.text())}catch(error:any){throw new Error(`JSON validation failed: ${error.message}`)}
       const canonical = importEducationalContent(data);
+      const schemaErrors=canonical.issues.filter((issue)=>issue.severity==="error");
+      if(schemaErrors.length)throw new Error(`Schema validation failed: ${schemaErrors.map((issue)=>`${issue.subtopicId||"root"}.${issue.path}: ${issue.message}`).join(" | ")}`);
       if (!canonical.topics[0]?.subtopics.length) throw new Error("The JSON does not contain any importable SUBTOPIC_CONTENT blocks or subtopics.");
       setMsg(imageImportFiles.length?"Uploading referenced images…":"Preparing competency topics and subtopics…");
       const uploaded: any[] = imageImportFiles.length ? await platformApi.uploadChapterMedia(chapter.id, imageImportFiles) : [];
-      const imageUrls = new Map(uploaded.map((item: any) => [mediaFileName(item.fileName), item.url]));
       const articles = patternArticles(htmlFile ? await htmlFile.text() : "");
       const canonicalTopic = canonical.topics[0];
       const imported: Topic = { id: canonicalTopic.id, title: canonicalTopic.title, html: "", source: { syllabusCode: canonicalTopic.id, educationalImport: true }, subtopics: canonicalTopic.subtopics.map((subtopic) => {
-        const uploadedUrl = imageUrls.get(mediaFileName(subtopic.content.diagram?.file_name));
-        const html = renderEducationalSubtopic(subtopic, uploadedUrl);
+        const html = `<p>Structured competency pattern ${escapeHtml(subtopic.id)}. Use Preview as student to review the React-rendered content.</p>`;
         const suppliedHtml=articles.get(subtopic.id);
         if(suppliedHtml){const text=(value:string)=>new DOMParser().parseFromString(value,"text/html").body.textContent?.replace(/\s+/g," ").trim();if(text(suppliedHtml)!==text(html))canonical.issues.push({severity:"warning",topicId:canonicalTopic.id,subtopicId:subtopic.id,path:"printableHtml",message:"Supplied printable HTML differs from canonical JSON output; JSON was retained as the source of truth."});}
         return { id: subtopic.id, title: subtopic.title, html, source: { syllabusCode: subtopic.id, educationalImport: true, competencyContent: subtopic.content } };
