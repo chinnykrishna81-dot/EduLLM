@@ -449,13 +449,14 @@ export function SimpleChapterContentEditor({
       const jsonFile = contentImportFiles.find((file) => file.name.toLowerCase().endsWith(".json"));
       const htmlFile = contentImportFiles.find((file) => /\.html?$/i.test(file.name));
       if(!jsonFile&&htmlFile){
-        if(!topic)throw new Error("Create or select a topic before uploading HTML.");
+        const competencyTopic:Topic={id:uid("competency-patterns"),title:"Competency Patterns",html:"",subtopics:[]};
+        const nextTopics=[...topics.filter((item)=>!(item.title==="Topic 1"&&!item.html&&!item.subtopics.length)),competencyTopic];
         setMsg("Saving the current topic hierarchy before uploading HTML…");
-        await platformApi.updateChapter(chapter.id,{title:chapter.title,description:chapter.description,content:{...buildContent(chapter,topics),competencyHtmlPresentations:htmlAssets}});
+        await platformApi.updateChapter(chapter.id,{title:chapter.title,description:chapter.description,content:{...buildContent(chapter,nextTopics),competencyHtmlPresentations:htmlAssets}});
         setMsg("Uploading and securing the HTML presentation…");
-        const result=await platformApi.uploadCompetencyHtml(chapter.id,topic.id,htmlFile);
-        const importedTopics=initTopics(result.chapter),index=Math.max(0,importedTopics.findIndex(item=>item.id===topic.id));
-        setTopics(importedTopics);setHtmlAssets(result.chapter.content?.competencyHtmlPresentations||[]);setExpandedTopicIds(current=>new Set(current).add(topic.id));setSelection({topicIndex:index,subtopicIndex:0});setTab("preview");
+        const result=await platformApi.uploadCompetencyHtml(chapter.id,competencyTopic.id,htmlFile);
+        const importedTopics=initTopics(result.chapter),index=Math.max(0,importedTopics.findIndex(item=>item.id===competencyTopic.id));
+        setTopics(importedTopics);setHtmlAssets(result.chapter.content?.competencyHtmlPresentations||[]);setExpandedTopicIds(current=>new Set(current).add(competencyTopic.id));setSelection({topicIndex:index,subtopicIndex:0});setTab("preview");
         setMsg(`Secure HTML presentation uploaded with ${result.presentation.patternIds?.length||result.createdSubtopics.length} pattern section(s).`);completed=true;return;
       }
       if(!jsonFile)throw new Error("Select a JSON or HTML competency file.");
