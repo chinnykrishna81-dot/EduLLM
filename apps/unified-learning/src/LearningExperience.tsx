@@ -190,9 +190,9 @@ function TreeNavigation({groups,pages,progress,cykStatus,cur,navigate,activeRef}
     const state=complete?(progress.mastery[group.id]||'blue'):done||group.pages.some((p:any)=>progress.opened.includes(p.id))?'active':'empty';
     const subtopics=group.subtopics.filter((s:any)=>!s.introduction);
     return <details open={isTopicActive||complete||expanded.has(group.id)} key={group.id}>
-      <summary className={`tree-summary mastery-${state}${isTopicActive?' topic-active':''}`} onClick={(event)=>{event.preventDefault();if(subtopics.length)setExpanded(current=>{const next=new Set(current);if(next.has(group.id))next.delete(group.id);else next.add(group.id);return next});else navigate(firstIdx)}}>
+      <summary className={`tree-summary mastery-${state}${isTopicActive?' topic-active':''}`} onClick={(event)=>{event.preventDefault();if(subtopics.length)setExpanded(current=>new Set(current).add(group.id));navigate(firstIdx)}}>
         <StatusBox state={state} percent={pct}/>
-        <span ref={isTopicActive&&!subtopics.length?(node=>{activeRef.current=node;}):undefined}>{group.title}</span>
+        <span ref={isTopicActive?(node=>{activeRef.current=node;}):undefined}>{group.title}</span>
         <strong>⌄</strong>
       </summary>
       <div className="sub-topic-list">{subtopics.map((sub:any)=>{
