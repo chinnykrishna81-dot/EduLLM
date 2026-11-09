@@ -208,7 +208,7 @@ export const platformApi = {
     const form=new FormData();form.append('file',file);form.append('folderType',folder.type);form.append('folderRefId',folder.id);form.append('folderLabel',folder.label);
     return request<{id:string}>(`/media-explorer/chapters/${chapterId}`,{method:'POST',body:form});
   },
-  replaceExplorerMedia: (id:string,file:File) => {const form=new FormData();form.append('file',file);return request<{replaced:boolean;id:string}>(`/media-explorer/${id}/replace`,{method:'POST',body:form})},
+  replaceExplorerMedia: (id:string,file:File) => {const form=new FormData();form.append('file',file);return request<{replaced:boolean;id:string;fileName:string;url:string;mimeType:string;byteSize:number;createdAt:string}>(`/media-explorer/${id}/replace`,{method:'POST',body:form})},
   deleteExplorerMedia: (id:string) => request<{deleted:boolean;id:string}>(`/media-explorer/${id}`,{method:'DELETE'}),
   chapters: () => request<LibraryChapter[]>('/library/chapters'),
   chapter: (id:string) => request<LibraryChapter>(`/library/chapters/${id}`),
