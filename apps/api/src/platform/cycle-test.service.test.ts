@@ -87,4 +87,14 @@ describe('CycleTestService attempt lifecycle',()=>{
     expect(service.response({...base,result_available_at:'2099-01-01T00:00:00Z'},true).result).toBeNull();
     expect(service.response({...base,result_available_at:'2020-01-01T00:00:00Z'},true).result).toMatchObject({score:8,totalMarks:10,percent:80});
   });
+
+  it('keeps the latest published mastery while a newer result is pending',async()=>{
+    const pending={attempt_id:'a2',attempt_number:2,form_number:2,status:'submitted',started_at:'2026-11-10T06:00:00Z',deadline_at:'2026-11-10T06:40:00Z',submitted_at:'2026-11-10T06:20:00Z',result_available_at:'2099-01-01T00:00:00Z',answers:{},review_questions:{},score:0,total_marks:1,topic_scores:[{topicId:'t1',percent:0,status:'orange'}],snapshot:{title:'Cycle Test',totalMarks:1,durationMinutes:40,retakeAfterDays:30,sections:[]}};
+    const published={...pending,attempt_id:'a1',attempt_number:1,form_number:1,result_available_at:'2020-01-01T00:00:00Z',score:1,topic_scores:[{topicId:'t1',topicTitle:'Topic 1',score:1,total:1,percent:100,status:'green'}]};
+    dbQuery.mockImplementation(async (sql:string)=>sql.includes("result_available_at<=now()")?{rowCount:1,rows:[published]}:sql.startsWith('SELECT * FROM cycle_test_attempt')?{rowCount:1,rows:[pending]}:{rowCount:0,rows:[]});
+    const value=await new CycleTestService().status('student-1','chapter-1');
+    expect(value.attempt?.result).toBeNull();
+    expect(value.mastery).toEqual({t1:'green'});
+    expect(value.history).toHaveLength(1);
+  });
 });

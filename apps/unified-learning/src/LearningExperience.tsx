@@ -56,6 +56,7 @@ export function ChapterLearning({subject,chapter,back,externalPractice,previewMo
   const [progress,setProgress]=useState<Progress>(initial);
   const [cykStatus,setCykStatus]=useState<Record<string,CykState>>({});
   const [media,setMedia]=useState<any[]>([]);
+  useEffect(()=>{if(previewMode)return;const studentToken=localStorage.getItem('edullm_student_token');if(!studentToken)return;fetch(`${API}/api/catalogue/chapters/${chapter.id}/cycle-test/status`,{headers:{Authorization:`Bearer ${studentToken}`}}).then(response=>response.ok?response.json():null).then(value=>{if(value?.mastery&&Object.keys(value.mastery).length)setProgress(current=>({...current,mastery:{...current.mastery,...value.mastery}}))}).catch(()=>{})},[chapter.id,previewMode]);
   const activeNavRef=useRef<HTMLElement|null>(null);
   const mainRef=useRef<HTMLElement|null>(null);
   useEffect(()=>{fetch(`${API}/api/catalogue/chapters/${chapter.id}/media`).then(r=>r.ok?r.json():[]).then(setMedia).catch(()=>setMedia([]))},[chapter.id]);

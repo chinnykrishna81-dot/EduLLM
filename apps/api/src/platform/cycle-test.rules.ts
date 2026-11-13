@@ -30,6 +30,7 @@ export function sanitizeQuestionForAttempt(value: any): any {
 export function evaluateCycleTest(snapshot: any, answers: Record<string, any>) {
   let score = 0, total = 0;
   const topicMap = new Map<string, {topicId: string; topicTitle: string; score: number; total: number}>();
+  const items: any[] = [];
   for (const section of snapshot?.sections || []) for (const question of section.questions || []) {
     const marks = Number(question.totalMarks || question.marks || section.marksPerQuestion || 1);
     total += marks;
@@ -38,7 +39,8 @@ export function evaluateCycleTest(snapshot: any, answers: Record<string, any>) {
       const steps = question.steps || [], explicitMarks = steps.reduce((sum: number, step: any) => sum + Number(step.marks || 0), 0);
       for (const step of steps) if (normalized(answers?.[question.id]?.[step.id]) === normalized(step.answer ?? step.correctAnswer)) earned += explicitMarks > 0 ? Number(step.marks || 0) : marks / Math.max(steps.length, 1);
       earned = Math.min(earned, marks);
-    } else if (normalized(answers?.[question.id]) === normalized(question.correctAnswer)) earned = marks;
+      items.push({questionId:question.id,question:question.question,topicId:question.topicId||question.patternId||'unmapped',earned:rounded(earned),marks,studentAnswer:answers?.[question.id]||{},steps:steps.map((step:any)=>({id:step.id,prompt:step.prompt,studentAnswer:answers?.[question.id]?.[step.id]??'',correctAnswer:step.answer??step.correctAnswer??'',correct:normalized(answers?.[question.id]?.[step.id])===normalized(step.answer??step.correctAnswer),marks:Number(step.marks||0),explanation:step.explanation||''})),finalAnswer:question.finalAnswer||question.explanation||''});
+    } else {if (normalized(answers?.[question.id]) === normalized(question.correctAnswer)) earned = marks;items.push({questionId:question.id,question:question.question,topicId:question.topicId||question.patternId||'unmapped',earned:rounded(earned),marks,studentAnswer:answers?.[question.id]??'',correctAnswer:question.correctAnswer??'',correct:earned===marks,explanation:question.explanation||''});}
     score += earned;
     const topicId = String(question.topicId || question.patternId || 'unmapped'), topicTitle = String(question.topicTitle || topicId);
     const topic = topicMap.get(topicId) || {topicId, topicTitle, score: 0, total: 0};
@@ -46,5 +48,5 @@ export function evaluateCycleTest(snapshot: any, answers: Record<string, any>) {
   }
   const green = Number(snapshot?.mastery?.greenPercent ?? 90), yellow = Number(snapshot?.mastery?.yellowPercent ?? 60);
   const topics = [...topicMap.values()].map(topic => { const percent = topic.total ? rounded(topic.score * 100 / topic.total) : 0; const status: MasteryStatus = percent >= green ? 'green' : percent >= yellow ? 'yellow' : 'orange'; return {...topic, score: rounded(topic.score), total: rounded(topic.total), percent, status}; });
-  return {score: rounded(score), total: rounded(total), topics};
+  return {score: rounded(score), total: rounded(total), topics, items};
 }

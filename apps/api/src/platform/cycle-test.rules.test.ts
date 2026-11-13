@@ -16,6 +16,9 @@ describe('Cycle Test rules',()=>{
       {topicId:'geometry',topicTitle:'Geometry',score:1,total:4,percent:25,status:'orange'},
       {topicId:'numbers',topicTitle:'numbers',score:1,total:2,percent:50,status:'yellow'}
     ]);
+    expect(result.items).toHaveLength(3);
+    expect(result.items[0]).toMatchObject({questionId:'mcq-1',studentAnswer:' X = 2. ',correctAnswer:'x = 2',correct:true,earned:2,marks:2});
+    expect(result.items[1]).toMatchObject({questionId:'guided-1',earned:1,marks:4,steps:[{id:'step-1',correct:true},{id:'step-2',correct:false}]});
   });
   it('uses configured thresholds at exact boundaries',()=>{const result=evaluateCycleTest({...snapshot,mastery:{greenPercent:100,yellowPercent:25}},{'mcq-1':'x = 2','guided-1':{'step-1':'Pythagoras'}});expect(result.topics.map(topic=>topic.status)).toEqual(['green','yellow','orange'])});
   it('rotates every form by default and honours an earlier repeat point',()=>{
