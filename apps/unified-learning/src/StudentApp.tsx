@@ -23,7 +23,7 @@ function ProfileScreen({ user, onDone, onClose }: { user: User; onDone: (u: User
 interface Subject  { id: string; name: string; grade: string; board: string; }
 interface Chapter  { id: string; subjectId: string; title: string; position: number; libraryChapterId?: string; topicItems?: any[]; content?: any; cycleTest?: any; }
 interface Topic    { id: string; chapterId: string; title: string; htmlContent: string; position: number; status: string; }
-interface Course   { id: string; title: string; description: string; price: number; listPrice?: number; discountPercent?: number; currency: string; status: string; subjects: Subject[]; searchTerms?: string[]; freeTrialDays?: number; }
+interface Course   { id: string; title: string; description: string; price: number; listPrice?: number; discountPercent?: number; currency: string; status: string; subjects: Subject[]; searchTerms?: string[]; freeTrialDays?: number; validityMode?: 'duration'|'date_range'; validityStartDate?: string; validityEndDate?: string; accessExpiresAt?: string; }
 interface QuestionStep { id: string; prompt: string; options: string[]; answer: string; marks: number; explanation: string; }
 interface Question { id: string; type: string; format: string; question: string; options: string[]; correctAnswer: string; explanation: string; finalAnswer?: string; marks: number; usage?: string[]; steps?: QuestionStep[]; }
 const portalBanners=[
@@ -126,14 +126,14 @@ function SubscribeModal({ course, onDone, onClose }: { course: Course; onDone: (
       <div className="sa-modal">
         <h2 style={{ marginBottom: 8 }}>Subscribe to Course</h2>
         <p style={{ fontSize: 15, marginBottom: 16 }}><strong>{course.title}</strong></p>
-        {course.freeTrialDays ? <div className="sa-profile-note" style={{marginBottom:12}}>Try free for {course.freeTrialDays} days, then continue with the course subscription.</div> : null}<div className="sa-price-block">
+        {course.validityMode==='date_range' ? <div className="sa-profile-note" style={{marginBottom:12}}>Pilot access is available from {course.validityStartDate} through {course.validityEndDate}. Access closes after the configured end date.</div> : course.freeTrialDays ? <div className="sa-profile-note" style={{marginBottom:12}}>Try free for {course.freeTrialDays} days, then continue with the course subscription.</div> : null}<div className="sa-price-block">
           <span className="sa-price">₹{course.price}</span>
           <span style={{ fontSize: 13, color: '#64748b' }}>one-time access</span>
         </div>
         {err && <div className="sa-modal-error">{err}</div>}
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
           <button className="sa-btn-primary" disabled={busy} onClick={confirm}>
-            {busy ? 'Processing…' : course.freeTrialDays ? `Start ${course.freeTrialDays}-day free trial` : `Pay ₹${course.price} & Subscribe`}
+            {busy ? 'Processing…' : course.validityMode==='date_range' ? 'Start pilot access' : course.freeTrialDays ? `Start ${course.freeTrialDays}-day free trial` : `Pay ₹${course.price} & Subscribe`}
           </button>
           <button className="sa-btn-ghost" onClick={onClose}>Cancel</button>
         </div>
@@ -164,7 +164,7 @@ function CourseCatalog({ user, subscribed, onSubscribed, onOpen, onAuthNeeded }:
 
   useEffect(() => {
     api<any[]>('/catalogue/courses', {}, false)
-      .then(items => setCourses(items.map(c => ({ id:c.id, title:c.title, description:c.description, price:Number(c.salePrice ?? c.listPrice ?? 0), listPrice:Number(c.listPrice ?? 0), discountPercent:Number(c.discountPercent ?? 0), currency:c.currency, status:c.status, freeTrialDays:Number(c.freeTrialDays||0), searchTerms:c.searchTerms||[], subjects:(c.subjects||[]).map((s:any)=>({id:s.id,name:s.title||s.name,grade:s.grade,board:s.board})) }))))
+      .then(items => setCourses(items.map(c => ({ id:c.id, title:c.title, description:c.description, price:Number(c.salePrice ?? c.listPrice ?? 0), listPrice:Number(c.listPrice ?? 0), discountPercent:Number(c.discountPercent ?? 0), currency:c.currency, status:c.status, freeTrialDays:Number(c.freeTrialDays||0), validityMode:c.validityMode, validityStartDate:c.validityStartDate, validityEndDate:c.validityEndDate, searchTerms:c.searchTerms||[], subjects:(c.subjects||[]).map((s:any)=>({id:s.id,name:s.title||s.name,grade:s.grade,board:s.board})) }))))
       .catch(e => setErr(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -256,6 +256,7 @@ function Dashboard({ user, onOpen }: { user: User; onOpen: (c: Course) => void }
             <div className="sa-course-card-body">
               <h3>{c.title}</h3>
               {c.description && <p>{c.description}</p>}
+              {c.accessExpiresAt && <p className="sa-profile-note">Access available through {new Date(new Date(c.accessExpiresAt).getTime()-1).toLocaleDateString(undefined,{dateStyle:'medium'})}</p>}
               <div className="sa-subject-chips">
                 {c.subjects.map(s => <span key={s.id} className="sa-chip">{s.name} · {s.grade}</span>)}
               </div>
